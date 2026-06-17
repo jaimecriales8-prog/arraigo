@@ -8,6 +8,7 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "postgis";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS "vector";
 
 -- ============================================================
 -- ENUM: roles del sistema
@@ -545,7 +546,3 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION handle_new_user();
 
--- ============================================================
--- EXTENSIÓN: pgvector para embeddings CLIP (escena)
--- ============================================================
-CREATE EXTENSION IF NOT EXISTS vector;
