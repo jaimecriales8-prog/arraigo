@@ -1,0 +1,19 @@
+{
+  "name": "arraigo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "mobile": "yarn workspace @arraigo/mobile start",
+    "web": "yarn workspace @arraigo/web dev",
+    "db:migrate": "supabase db push",
+    "db:types": "supabase gen types typescript --local > packages/shared/src/database.types.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "yarn@4.0.0"
+}
