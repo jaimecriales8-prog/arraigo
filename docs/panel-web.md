@@ -1,107 +1,60 @@
 # Panel Web — Arraigo
 
+## URL producción
+https://arraigo-ten.vercel.app
+
 ## Stack
+- Next.js (App Router) — `apps/web`
+- Supabase SSR para auth y data
+- Deploy: Vercel (proyecto `arraigo`, team `jaime-criales-projects`)
 
-- **Next.js 15** + App Router + TypeScript
-- **Tailwind CSS v4**
-- **@supabase/ssr** para auth server-side
-- **Middleware** de protección de rutas
+## Credenciales de acceso
+- **Admin:** admin@arraigo.co / Admin2026!
 
-## Estructura
+## Módulos implementados
 
-```
-apps/web/src/
-├── app/
-│   ├── layout.tsx
-│   ├── page.tsx                 # Redirect a /dashboard o /login
-│   ├── login/
-│   │   └── page.tsx             # Login para funcionarios
-│   ├── dashboard/               # Panel officer / org_admin
-│   │   ├── page.tsx             # Lista de casos + alertas activas
-│   │   ├── casos/
-│   │   │   ├── page.tsx         # Lista de casos
-│   │   │   └── [id]/
-│   │   │       ├── page.tsx     # Detalle del caso
-│   │   │       └── historial/
-│   │   │           └── page.tsx # Historial de check-ins
-│   │   └── alertas/
-│   │       └── page.tsx         # Gestión de alertas
-│   ├── supervisor/              # Panel juez / fiscal
-│   │   └── page.tsx
-│   └── admin/                   # Panel org_admin
-│       ├── casos/
-│       ├── usuarios/
-│       └── configuracion/
-├── lib/
-│   └── supabase/
-│       ├── server.ts            # createClient() para Server Components
-│       └── client.ts            # createClient() para Client Components
-└── middleware.ts                # Guard de auth global
-```
+### /login
+Pantalla de login con diseño oscuro (#0a1628). Redirige a `/dashboard` si hay sesión activa.
 
-## Variables de entorno
+### /dashboard
+Resumen operativo con 3 tarjetas:
+- Casos activos
+- Check-ins del día
+- Alertas pendientes (checkins fallidos)
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_...
-SUPABASE_SERVICE_ROLE_KEY=sb_secret_...
-```
+### /dashboard/casos
+Tabla de todos los casos con:
+- Expediente, imputado, estado, total check-ins, último check-in
+- Link a detalle de cada caso
 
-El `service_role` **solo** se usa en route handlers del servidor para operaciones de sistema (crear alertas, scheduler). Nunca se expone al cliente.
+### /dashboard/casos/[id]
+Detalle del caso con:
+- Info del caso (expediente, imputado, frecuencia, ubicación, radio)
+- Estadísticas (total / aprobados / fallidos)
+- **Botón ⚡ Verificación sorpresa** — dispara notificación push al imputado con 15 min de plazo
+- Historial de check-ins con scores de cara, escena y estado GPS
 
-## Auth y redirección por rol
+### /dashboard/usuarios
+Módulo de gestión de usuarios de la organización:
+- Lista de usuarios (admin, judicial, técnico)
+- Formulario para crear nuevos usuarios → envía email de invitación vía Supabase Auth
 
-`middleware.ts` intercepta todas las rutas (excepto `/login` y `/auth`):
-- Sin sesión → redirect `/login`
-- Con sesión → pasa al layout que detecta el rol y muestra el panel correcto
+## API Routes
 
-## Correr en desarrollo
+### POST /api/usuarios/crear
+Crea un usuario en Supabase Auth + perfil en `profiles`.
+Requiere sesión activa con rol `admin` o `judicial`.
 
+Body: `{ full_name, email, role }`
+
+## Componentes clave
+- `Sidebar.tsx` — navegación lateral
+- `SorpresaButton.tsx` — botón de verificación sorpresa (client component)
+- `CrearUsuarioForm.tsx` — formulario de creación de usuarios
+
+## Deploy
 ```bash
+source ~/.nvm/nvm.sh
 cd apps/web
-npm run dev        # http://localhost:3000
+npx vercel --prod --yes --scope jaime-criales-projects
 ```
-
-## Paneles por rol
-
-### `org_admin` y `officer` → `/dashboard`
-- Lista de todos los casos de la organización
-- Alertas activas en tiempo real (Supabase Realtime)
-- Detalle de caso: historial de check-ins, scores, fotos de evidencia
-- Resolución de alertas con nota
-
-### `supervisor` → `/supervisor`
-- Solo los casos donde `cases.supervisor_id = auth.uid()`
-- Historial de check-ins de sus casos
-- Recibe notificaciones de alertas críticas
-
-### `org_admin` → `/admin`
-- Gestión de usuarios de la organización
-- Creación y configuración de casos
-- Asignación de técnico y supervisor por caso
-
-## Tiempo real
-
-Las alertas y el estado de los check-ins se actualizan en tiempo real usando **Supabase Realtime**:
-
-```typescript
-supabase
-  .channel('alerts')
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'alerts',
-    filter: `organization_id=eq.${orgId}`,
-  }, (payload) => {
-    // Mostrar notificación en el panel
-  })
-  .subscribe()
-```
-
-## Próximos pasos (Fase 3)
-
-- [ ] Dashboard con mapa de casos (Mapbox o Google Maps)
-- [ ] Galería de evidencias por check-in
-- [ ] Exportación de reportes PDF firmados digitalmente
-- [ ] Notificaciones por email/SMS al supervisor en alertas críticas
-- [ ] Onboarding del técnico (captura de checkpoints)

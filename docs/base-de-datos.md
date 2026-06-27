@@ -1,146 +1,131 @@
-# Base de datos — Arraigo
+# Base de Datos — Arraigo
 
-## Regla de oro
+## Proyecto Supabase
+- URL: https://shusqumfugjkwhuwyyvf.supabase.co
+- Ref: shusqumfugjkwhuwyyvf
 
-> **Nunca modificar una migración ya aplicada. Siempre crear una nueva.**
-> Archivo de migración = contrato. Cambiarlo rompe otros entornos.
-
-## Migraciones aplicadas
-
-| Archivo | Descripción |
-|---|---|
-| `20260617_001_schema.sql` | Schema completo + RLS + triggers |
-| `20260617_002_fix_trigger.sql` | Fix trigger handle_new_user + org de prueba |
-| `20260617_003_seed_prueba.sql` | Seed de datos de prueba |
+## Extensiones
+- `uuid-ossp`
+- `vector` (pgvector para embeddings de escena)
 
 ## Tablas
 
-### `organizations`
-Los tenants del sistema. Una fila = una entidad cliente (INPEC, juzgado, etc.).
+### organizations
+Multi-tenant root. Cada entidad que contrata Arraigo es una organización.
 
-| Columna | Tipo | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | UUID | PK |
-| `name` | TEXT | Nombre de la entidad |
-| `nit` | TEXT | NIT único |
-| `contact_email` | TEXT | Email de contacto |
-| `is_active` | BOOLEAN | Soft-delete |
-| `settings` | JSONB | Configuración por organización |
+| id | UUID PK | |
+| name | TEXT | Nombre de la organización |
+| slug | TEXT UNIQUE | Identificador URL |
+| plan | TEXT | free / pro / enterprise |
+| created_at | TIMESTAMPTZ | |
 
-### `profiles`
+### profiles
 Extiende `auth.users`. Un perfil por usuario.
 
-| Columna | Tipo | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | UUID | FK → auth.users |
-| `organization_id` | UUID | FK → organizations (null para super_admin) |
-| `role` | user_role | Enum de rol |
-| `full_name` | TEXT | Nombre completo |
-| `document_type` | TEXT | CC, CE, pasaporte |
-| `document_number` | TEXT | Número de documento |
+| id | UUID PK → auth.users | |
+| organization_id | UUID FK | |
+| role | user_role ENUM | imputado / tecnico / judicial / super_admin |
+| full_name | TEXT | |
+| document_type | TEXT | CC, CE, PA |
+| document_number | TEXT | |
+| phone | TEXT | |
+| push_token | TEXT | Token Expo para push notifications |
+| is_active | BOOLEAN | |
 
-### `cases`
-El corazón del sistema. Un caso = un imputado bajo una medida de arresto domiciliario.
+### cases
+Un caso por imputado.
 
-| Columna | Tipo | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | UUID | PK |
-| `organization_id` | UUID | FK → organizations |
-| `imputado_id` | UUID | FK → profiles |
-| `technician_id` | UUID | FK → profiles (técnico asignado) |
-| `supervisor_id` | UUID | FK → profiles (juez/fiscal) |
-| `case_number` | TEXT | Número de expediente |
-| `status` | case_status | onboarding / active / suspended / closed / revoked |
-| `location` | GEOMETRY(POINT) | Coordenadas del domicilio (PostGIS) |
-| `geofence_radius_m` | INTEGER | Radio del geofence en metros |
-| `checkin_times` | JSONB | Array de horas: `["08:00","14:00","20:00"]` |
-| `checkin_window_min` | INTEGER | Minutos de tolerancia por check-in |
-| `face_threshold` | NUMERIC | Umbral mínimo verificación facial (0-1) |
-| `scene_threshold` | NUMERIC | Umbral mínimo verificación de escena (0-1) |
+| id | UUID PK | |
+| organization_id | UUID FK | |
+| case_number | TEXT | Expediente judicial |
+| imputado_id | UUID FK → profiles | |
+| assigned_to | UUID FK → profiles | Técnico o judicial responsable |
+| status | case_status ENUM | active / suspended / closed |
+| home_lat | FLOAT8 | Coordenadas del domicilio |
+| home_lng | FLOAT8 | |
+| home_radius_m | INT | Radio permitido (metros) |
+| checkin_frequency_hours | INT | Frecuencia de check-ins |
+| checkin_window_minutes | INT | Ventana de tiempo para completar |
 
-### `checkpoints`
-Puntos de referencia del domicilio. Los registra el técnico en el onboarding presencial.
+### checkins
+Registro de cada verificación.
 
-| Columna | Tipo | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | UUID | PK |
-| `case_id` | UUID | FK → cases |
-| `label` | TEXT | Ej: "Ventana sala con cortina gris" |
-| `description` | TEXT | Instrucción para el imputado |
-| `photo_url` | TEXT | URL de la foto de referencia (Storage) |
-| `embedding` | VECTOR(512) | Embedding CLIP de la foto (pgvector) |
-| `is_active` | BOOLEAN | Se puede desactivar sin borrar |
-| `created_by` | UUID | FK → profiles (técnico) |
+| id | UUID PK | |
+| organization_id | UUID FK | |
+| case_id | UUID FK | |
+| type | TEXT | scheduled / surprise |
+| status | checkin_status ENUM | pending / passed / failed |
+| gps_lat / gps_lng | FLOAT8 | Coordenadas capturadas |
+| gps_accuracy_m | FLOAT4 | Precisión GPS |
+| gps_is_mock | BOOLEAN | Anti-spoofing |
+| face_score | FLOAT4 | Score verificación facial (0-1) |
+| scene_score | FLOAT4 | Score verificación de escena (0-1) |
+| selfie_url | TEXT | URL en Storage |
+| scene_url | TEXT | URL en Storage |
+| expires_at | TIMESTAMPTZ | Para verificaciones sorpresa |
 
-### `checkins`
-Cada verificación programada. Se crea automáticamente por el scheduler.
+### checkpoints
+Puntos de referencia del domicilio para verificación de escena.
 
-| Columna | Tipo | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | UUID | PK |
-| `case_id` | UUID | FK → cases |
-| `scheduled_at` | TIMESTAMPTZ | Cuándo debía hacerse |
-| `window_closes_at` | TIMESTAMPTZ | Límite de la ventana |
-| `status` | checkin_status | pending / completed / failed / missed / excused |
-| `face_score` | NUMERIC | Score de similitud facial (0-1) |
-| `face_passed` | BOOLEAN | ¿Pasó el umbral? |
-| `face_photo_url` | TEXT | URL de la selfie capturada |
-| `gps_lat/lng` | NUMERIC | Coordenadas GPS reportadas |
-| `gps_is_mock` | BOOLEAN | ¿GPS simulado detectado? |
-| `gps_distance_m` | NUMERIC | Distancia al centroide del domicilio |
-| `gps_passed` | BOOLEAN | ¿Dentro del geofence? |
-| `scene_checkpoint_id` | UUID | Qué punto de referencia se pidió |
-| `scene_score` | NUMERIC | Score de similitud de escena (0-1) |
-| `scene_passed` | BOOLEAN | ¿Pasó el umbral? |
-| `overall_score` | NUMERIC | Score consolidado 0-100 |
-| `overall_passed` | BOOLEAN | Resultado final |
+| id | UUID PK | |
+| case_id | UUID FK | |
+| label | TEXT | Nombre del punto (ej: "Sala") |
+| description | TEXT | Instrucción al imputado |
+| reference_embedding | vector(512) | Embedding CLIP de la foto de referencia |
+| reference_url | TEXT | Foto de referencia |
+| is_active | BOOLEAN | |
 
-### `alerts`
-Alertas generadas automáticamente por incumplimientos.
+### surprise_verifications
+Verificaciones sorpresa solicitadas por el juzgado.
 
-| Tipo | Severidad | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `missed_checkin` | critical | No se realizó en la ventana |
-| `gps_out_of_range` | critical | Fuera del geofence |
-| `face_verification_failed` | warning | No pasó verificación facial |
-| `scene_verification_failed` | warning | No pasó verificación de escena |
-| `mock_gps_detected` | critical | GPS simulado detectado |
-| `multiple_failures` | critical | 3+ fallos consecutivos |
+| id | UUID PK | |
+| organization_id | UUID FK | |
+| case_id | UUID FK | |
+| requested_by | UUID FK → profiles | Quién la solicitó |
+| expires_at | TIMESTAMPTZ | 15 minutos desde creación |
+| status | TEXT | pending / completed / expired |
 
-### `audit_log`
-Append-only. Tiene RULEs SQL que bloquean UPDATE y DELETE a nivel de base de datos.
+### audit_log
+Inmutable por RULE (no se puede UPDATE ni DELETE). Cadena de custodia legal.
 
-| Columna | Tipo | Descripción |
+| Campo | Tipo | Descripción |
 |---|---|---|
-| `id` | BIGSERIAL | PK autoincremental |
-| `organization_id` | UUID | FK → organizations |
-| `case_id` | UUID | FK → cases |
-| `actor_id` | UUID | Quién realizó la acción |
-| `actor_role` | user_role | Rol en el momento de la acción |
-| `action` | TEXT | Ej: `checkin.completed`, `alert.created` |
-| `payload` | JSONB | Snapshot del estado relevante |
-| `ip_address` | INET | IP del cliente |
+| id | UUID PK | |
+| organization_id | UUID FK | |
+| actor_id | UUID | |
+| action | TEXT | create_case, submit_checkin, etc. |
+| table_name | TEXT | |
+| record_id | UUID | |
+| metadata | JSONB | |
 
-## RLS — Resumen de políticas
+## RLS (Row Level Security)
 
-El principio base: **cada usuario solo ve lo que le pertenece**.
+Todas las tablas tienen RLS activado. Políticas basadas en:
+- `auth_org()` — retorna el `organization_id` del usuario autenticado
+- `auth_role()` — retorna el rol del usuario
+- `is_super_admin()` — verifica si es super_admin
 
-```
-super_admin     → ve TODO sin filtro
-org_admin       → ve su organización completa
-officer         → ve casos y alerts de su org (solo lectura)
-technician      → ve y crea checkpoints en casos asignados
-supervisor      → ve solo casos donde supervisor_id = auth.uid()
-imputado        → ve solo su caso; INSERT en checkins de su caso
+## Enums
+```sql
+user_role: imputado, tecnico, judicial, super_admin
+case_status: active, suspended, closed
+checkin_status: pending, passed, failed
 ```
 
-Las funciones helper `auth_role()`, `auth_org()` y `is_super_admin()` evitan repetir lógica en cada política.
-
-## Extensiones habilitadas
-
-| Extensión | Uso |
-|---|---|
-| `uuid-ossp` | Generación de UUIDs |
-| `postgis` | Índice espacial, geofencing, ST_Distance |
-| `pgcrypto` | Hash de documentos sensibles |
-| `vector` | Embeddings CLIP para verificación de escena |
+## Datos de prueba
+- Organización: Arraigo Demo
+- Imputado: Carlos Rodríguez (07a4f83c-e75b-455b-a0b3-a3be83140e63)
+- Caso: #2026-00123, Calle 45 #12-34 Chapinero, Bogotá
+- Admin panel: admin@arraigo.co / Admin2026!

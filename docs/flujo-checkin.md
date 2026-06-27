@@ -1,99 +1,75 @@
 # Flujo de Check-in — Arraigo
 
-## Ciclo completo
+## Tipos de verificación
 
-```
-Scheduler crea checkin (status=pending)
-        ↓
-Push notification al imputado
-        ↓
-Imputado abre la app → ve botón activo
-        ↓
-┌─── Paso 1: Selfie ──────────────────────────────┐
-│  Cámara frontal → foto → base64                  │
-│  Guía oval en pantalla para encuadrar la cara    │
-└─────────────────────────────────────────────────┘
-        ↓
-┌─── Paso 2: GPS ─────────────────────────────────┐
-│  expo-location → lat/lng/accuracy                │
-│  isMocked check (Android)                        │
-│  Si mock: se registra gps_is_mock=true           │
-└─────────────────────────────────────────────────┘
-        ↓
-┌─── Paso 3: Escena ──────────────────────────────┐
-│  Checkpoint aleatorio del domicilio              │
-│  "Apunta la cámara hacia: Ventana sala"          │
-│  Cámara trasera → foto → base64                  │
-└─────────────────────────────────────────────────┘
-        ↓
-┌─── Envío a Edge Function ───────────────────────┐
-│  1. Sube selfie y foto escena a Storage          │
-│  2. POST /functions/v1/process-checkin           │
-│     ├── Verificación facial (AWS Rekognition)    │
-│     ├── Verificación GPS (PostGIS ST_Distance)   │
-│     └── Verificación escena (CLIP cosine sim)    │
-│  3. Calcula overall_score (0-100)                │
-│  4. UPDATE checkins SET status, scores, ...      │
-│  5. Si falla → INSERT alerts                     │
-│  6. INSERT audit_log                             │
-└─────────────────────────────────────────────────┘
-        ↓
-Pantalla de resultado (✓ exitoso / ! fallido)
-```
+### 1. Verificación programada
+- Se activa según `checkin_frequency_hours` del caso
+- El imputado ve los horarios en su home (ej: 08:00, 14:00, 20:00)
+- Disponible durante la ventana `checkin_window_minutes`
 
-## Ventana de tiempo
+### 2. Verificación sorpresa
+- La dispara el juzgado desde el panel web → botón ⚡
+- El imputado recibe push notification inmediata
+- Tiene 15 minutos para completarla
+- Si no responde → `status: expired` + alerta al juzgado
 
-- El scheduler crea check-ins con `scheduled_at` y `window_closes_at`
-- `window_closes_at = scheduled_at + checkin_window_min` (default 30 min)
-- Si el imputado no abre la app antes de `window_closes_at`, el check-in pasa a `missed`
-- Un `missed` genera alerta `critical` automáticamente
+## Pasos del check-in
 
-## Score consolidado
+### Paso 1: Selfie (`/checkin/selfie`)
+- CameraView facing="front"
+- Overlay oval como guía
+- Captura foto base64
+- Guarda en `checkinStore.selfieBase64`
 
-```
-overall_score = (face_score × 40) + (gps_score × 35) + (scene_score × 25)
-```
+### Paso 2: GPS (`/checkin/gps`)
+- Auto-captura al montar la pantalla
+- Detecta `isMocked` (anti-spoofing Android)
+- Muestra advertencia si GPS es falso
+- Guarda `{lat, lng, accuracyM, isMock}` en store
 
-| Componente | Peso | Umbral de aprobación |
+### Paso 3: Escena (`/checkin/escena`)
+- Carga checkpoint aleatorio activo de la DB
+- CameraView facing="back"
+- Muestra instrucción: "Apunta la cámara a: [label]"
+- Captura foto base64 del punto de referencia
+
+### Paso 4: Resultado (`/checkin/resultado`)
+1. Sube selfie a Storage: `{org_id}/{case_id}/selfie_{timestamp}.jpg`
+2. Sube foto de escena: `{org_id}/{case_id}/scene_{timestamp}.jpg`
+3. Llama Edge Function `process-checkin` con:
+   - `case_id`, `checkin_id`
+   - GPS data
+   - URLs de fotos
+   - `checkpoint_id`
+4. Muestra resultado: ✅ Aprobado / ❌ Fallido / Error
+
+## Criterios de aprobación (Fase 2+)
+| Verificación | Umbral | Tecnología |
 |---|---|---|
-| Verificación facial | 40% | face_threshold (default 0.80) |
-| GPS en geofence | 35% | dentro de geofence_radius_m |
-| Verificación de escena | 25% | scene_threshold (default 0.82) |
+| GPS en radio | ≤ home_radius_m | Haversine |
+| GPS no falso | isMocked = false | expo-location |
+| Cara reconocida | score ≥ 0.80 | AWS Rekognition |
+| Escena correcta | cosine_similarity ≥ 0.82 | CLIP + pgvector |
 
-`overall_passed = true` solo si los 3 componentes pasan individualmente.
+## Fase actual (Fase 1)
+- GPS capturado y validado ✅
+- Selfie capturada y subida ✅
+- Escena capturada y subida ✅
+- Verificación facial: pendiente (Fase 2)
+- Verificación de escena con CLIP: pendiente (Fase 4)
 
-## Generación de alertas
+## Edge Functions
 
-| Condición | Tipo | Severidad |
-|---|---|---|
-| `window_closes_at` sin completar | `missed_checkin` | critical |
-| `gps_distance_m > geofence_radius_m` | `gps_out_of_range` | critical |
-| `gps_is_mock = true` | `mock_gps_detected` | critical |
-| `face_passed = false` | `face_verification_failed` | warning |
-| `scene_passed = false` | `scene_verification_failed` | warning |
-| 3+ fallos consecutivos | `multiple_failures` | critical |
+### trigger-surprise
+Dispara verificación sorpresa:
+- Crea registro en `surprise_verifications`
+- Envía push notification via Expo Push API
+- Retorna `verification_id` y `expires_at`
 
-Las alertas `critical` envían SMS y email al supervisor (juez/fiscal) y al officer asignado.
-
-## Onboarding del domicilio (técnico)
-
-El técnico realiza el onboarding presencialmente en el domicilio:
-
-1. Abre la app como `technician`
-2. Accede al caso asignado
-3. Captura 4-6 fotos de puntos de referencia únicos del domicilio
-4. Por cada foto: la app la sube a Storage y llama a la Edge Function `generate-embedding` que computa el CLIP embedding y lo guarda en `checkpoints.embedding`
-5. Marca el onboarding como completo → `cases.onboarding_done_at`
-6. El caso pasa a `status=active` y el scheduler comienza a crear check-ins
-
-## Datos almacenados por check-in
-
-Cada check-in genera evidencia inmutable para el expediente judicial:
-- Selfie del imputado (Storage, privado)
-- Foto de la escena (Storage, privado)
-- Coordenadas GPS con precisión
-- Score de cada verificación
-- Timestamp exacto
-- Versión de la app y OS
-- Flag de GPS mock
-- Registro en audit_log
+### process-checkin (pendiente Fase 2)
+Procesa el check-in:
+- Verifica GPS vs home_lat/home_lng
+- Llama AWS Rekognition para comparar selfie vs foto referencia
+- Calcula similitud de embedding de escena
+- Actualiza `checkins.status`, `face_score`, `scene_score`
+- Registra en `audit_log`

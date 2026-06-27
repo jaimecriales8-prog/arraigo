@@ -2,146 +2,100 @@
 
 ## Panel web → Vercel
 
-### Primera vez
+### URL producción
+https://arraigo-ten.vercel.app
 
+### Deploy
 ```bash
 source ~/.nvm/nvm.sh
 cd apps/web
-npx vercel --prod
+npx vercel --prod --yes --scope jaime-criales-projects
 ```
 
-Seleccionar:
-- Framework: Next.js
-- Root directory: `apps/web`
-- Build command: `npm run build`
-- Output: `.next`
-
-### Variables de entorno en Vercel
-
-En el dashboard de Vercel → Settings → Environment Variables:
-
+### Variables de entorno (ya configuradas en Vercel)
 ```
-NEXT_PUBLIC_SUPABASE_URL        → Production + Preview
-NEXT_PUBLIC_SUPABASE_ANON_KEY   → Production + Preview
-SUPABASE_SERVICE_ROLE_KEY       → Production ONLY
+NEXT_PUBLIC_SUPABASE_URL
+NEXT_PUBLIC_SUPABASE_ANON_KEY
+SUPABASE_SERVICE_ROLE_KEY
 ```
 
-### Deploys subsiguientes
+## App móvil → Xcode (iOS)
 
-```bash
-cd apps/web && npx vercel --prod
-```
+### Requisitos
+- Xcode instalado en `/Applications/Xcode.app`
+- CocoaPods: `brew install cocoapods`
+- iPhone con Modo Desarrollador activo (Configuración → Privacidad y Seguridad → Modo Desarrollador)
+- iPhone conectado por USB
 
-O conectar el repo a Vercel para deploys automáticos en cada push a `main`.
-
-## App móvil → EAS Build (Expo)
-
-### Requisitos previos
-
-- Cuenta Apple Developer ($99/año) — para iOS
-- Cuenta Google Play Console ($25 único) — para Android
-- `npm install -g eas-cli`
-
-### Configurar EAS
-
-```bash
-cd apps/mobile
-eas login
-eas build:configure
-```
-
-Esto crea `eas.json`:
-
-```json
-{
-  "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal"
-    },
-    "preview": {
-      "distribution": "internal"
-    },
-    "production": {}
-  }
-}
-```
-
-### Build de prueba (APK para Android)
-
-```bash
-eas build --platform android --profile preview
-```
-
-Genera un APK instalable directamente sin necesidad de Play Store.
-
-### Build de producción
-
-```bash
-# Android (AAB para Play Store)
-eas build --platform android --profile production
-
-# iOS (IPA para App Store)
-eas build --platform ios --profile production
-```
-
-### Publicar actualizaciones OTA (sin nueva build)
-
-Para cambios que no tocan código nativo (JS/TS solo):
-
-```bash
-eas update --branch production --message "Fix: descripción del cambio"
-```
-
-Los usuarios reciben la actualización automáticamente al abrir la app.
-
-## Supabase — producción
-
-### Edge Functions
-
+### Build y deploy al dispositivo
 ```bash
 source ~/.nvm/nvm.sh
-SUPABASE_ACCESS_TOKEN=<pat> npx supabase functions deploy process-checkin \
-  --project-ref shusqumfugjkwhuwyyvf \
-  --no-verify-jwt
+cd apps/mobile
+
+# 1. Generar bundle JS
+npx expo export:embed --platform ios --bundle-output ios/Arraigo/main.jsbundle --assets-dest ios/Arraigo --dev false
+
+# 2. Build e instalar en iPhone
+npx expo run:ios --device --configuration Release
 ```
 
-### Secrets de Edge Functions
+> **Nota hotel/red restringida:** usar `--configuration Release` con bundle embebido elimina la necesidad de Metro server, funciona sin red local.
 
+### Cuando hay cambios JS (sin cambios nativos)
+Solo regenerar el bundle y rebuildar:
 ```bash
-SUPABASE_ACCESS_TOKEN=<pat> npx supabase secrets set \
-  AWS_ACCESS_KEY_ID=<key> \
-  AWS_SECRET_ACCESS_KEY=<secret> \
-  AWS_REGION=us-east-1 \
-  --project-ref shusqumfugjkwhuwyyvf
+npx expo export:embed --platform ios --bundle-output ios/Arraigo/main.jsbundle --assets-dest ios/Arraigo --dev false
+npx expo run:ios --device --configuration Release
 ```
 
-### Backup de base de datos
-
-Supabase realiza backups diarios automáticos (plan Pro). Para backup manual:
-
+### Cuando hay cambios nativos (nuevos plugins, permisos)
+Ejecutar prebuild primero:
 ```bash
-pg_dump "postgresql://postgres:<password>@db.shusqumfugjkwhuwyyvf.supabase.co:5432/postgres" \
-  --no-owner -f backup_$(date +%Y%m%d).sql
+npx expo prebuild --platform ios --clean
+npx expo run:ios --device --configuration Release
 ```
 
-## Dominios sugeridos
+## Edge Functions → Supabase
 
-| Servicio | Dominio |
-|---|---|
-| Panel web | app.arraigo.co |
-| API (Supabase) | api.arraigo.co (proxy opcional) |
-| App móvil | Deep link: arraigo:// |
+### Deploy
+```bash
+source ~/.nvm/nvm.sh
+cd /Users/jaimecriales/Sites/arraigo
+SUPABASE_ACCESS_TOKEN=<pat> npx supabase functions deploy trigger-surprise --project-ref shusqumfugjkwhuwyyvf
+```
+
+### Funciones desplegadas
+- `trigger-surprise` — Dispara verificación sorpresa y envía push notification
+
+## Supabase
+
+### Proyecto
+- URL: https://shusqumfugjkwhuwyyvf.supabase.co
+- Ref: shusqumfugjkwhuwyyvf
+
+### Migraciones
+Aplicar en Dashboard → SQL Editor (IPv6 no disponible en este Mac).
+
+### Buckets Storage
+- `checkin-evidence` — fotos de check-ins (privado)
+
+## GitHub
+- Repo: https://github.com/jaimecriales8-prog/arraigo
+- Branch principal: `main`
+- Deploy automático: cada push a `main` → Vercel redespliega
 
 ## Checklist de go-live
 
-- [ ] Variables de entorno en Vercel (Production)
-- [ ] Dominio personalizado en Vercel
-- [ ] Edge Functions desplegadas
-- [ ] Secrets de AWS Rekognition configurados
-- [ ] Bucket `checkin-evidence` en Storage (privado)
-- [ ] RLS verificado con queries de prueba por cada rol
-- [ ] Build de app en TestFlight (iOS) / Play Store interno (Android)
-- [ ] Usuario de prueba end-to-end antes de entregar a la entidad
-- [ ] Templates de email en Supabase Auth en español
-- [ ] Límites de rate limiting configurados en Edge Functions
+- [x] Variables de entorno en Vercel
+- [x] GitHub conectado a Vercel
+- [x] Edge Function `trigger-surprise` desplegada
+- [x] Bucket `checkin-evidence` creado
+- [x] RLS en todas las tablas
+- [x] App instalada en dispositivo de prueba
+- [x] Usuario admin creado (admin@arraigo.co)
+- [ ] Dominio personalizado (app.arraigo.co)
+- [ ] Edge Function `process-checkin` (Fase 2)
+- [ ] Verificación facial con AWS Rekognition (Fase 2)
+- [ ] CLIP embeddings para escena (Fase 4)
+- [ ] Build TestFlight para distribución
+- [ ] Push notifications en producción (APNS certificates)
