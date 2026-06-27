@@ -32,13 +32,17 @@ export async function POST(req: Request) {
     .eq('id', currentUser.id)
     .single()
 
-  if (!currentProfile || !['admin', 'judicial'].includes(currentProfile.role)) {
+  if (!currentProfile || !['admin', 'judicial', 'super_admin'].includes(currentProfile.role)) {
     return NextResponse.json({ error: 'Sin permisos para crear usuarios' }, { status: 403 })
   }
 
-  // Create auth user and send invite
-  const { data: newUser, error: authError } = await supabase.auth.admin.inviteUserByEmail(email, {
-    data: { full_name, role },
+  // Create auth user with temp password (user can reset later)
+  const tempPassword = Math.random().toString(36).slice(-10) + 'A1!'
+  const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
+    email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: { full_name, role },
   })
 
   if (authError) return NextResponse.json({ error: authError.message }, { status: 500 })
@@ -48,7 +52,6 @@ export async function POST(req: Request) {
     id: newUser.user.id,
     organization_id: currentProfile.organization_id,
     full_name,
-    email,
     role,
   })
 
