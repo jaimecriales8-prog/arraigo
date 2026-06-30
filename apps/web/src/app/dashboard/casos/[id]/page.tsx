@@ -130,7 +130,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               <tr key={c.id} style={{ borderBottom: i < checkins.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <td style={{ padding: '14px 20px', fontSize: 13 }}>
                   {new Date(c.created_at).toLocaleString('es-CO', {
-                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
                   })}
                 </td>
                 <td style={{ padding: '14px 20px' }}>
