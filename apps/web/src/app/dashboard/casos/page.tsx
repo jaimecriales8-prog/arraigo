@@ -2,6 +2,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
 
+export const dynamic = 'force-dynamic'
+
 const STATUS_LABEL: Record<string, string> = {
   active: 'Activo',
   suspended: 'Suspendido',
@@ -15,19 +17,19 @@ const STATUS_COLOR: Record<string, string> = {
 
 async function getCasos() {
   const cookieStore = await cookies()
+  // Anon client con sesión del usuario — RLS filtra por org automáticamente
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
-  const { data } = await supabase
+
+  const { data, error } = await supabase
     .from('cases')
-    .select(`
-      id, case_number, status, checkin_frequency_hours, home_lat, home_lng,
-      imputado:profiles!cases_imputado_id_fkey(full_name),
-      checkins(id, status, created_at)
-    `)
+    .select('id, case_number, status, checkin_times, address, city, imputado:profiles!cases_imputado_id_fkey(full_name), checkins(id,status,created_at)')
     .order('created_at', { ascending: false })
+
+  if (error) console.error('[casos] error:', error.message)
   return data ?? []
 }
 
@@ -50,7 +52,7 @@ export default async function CasosPage() {
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {['Expediente', 'Imputado', 'Estado', 'Check-ins', 'Último check-in', 'Acciones'].map(h => (
+              {['Expediente', 'Imputado', 'Estado', 'Cumplimiento', 'Check-ins', 'Último check-in', 'Acciones'].map(h => (
                 <th key={h} style={{
                   padding: '14px 20px', textAlign: 'left',
                   fontSize: 12, fontWeight: 600,
@@ -69,9 +71,20 @@ export default async function CasosPage() {
             )}
             {casos.map((caso: any, i: number) => {
               const checkins = caso.checkins ?? []
-              const ultimo = checkins.sort((a: any, b: any) =>
-                new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-              )[0]
+              const ultimo = checkins
+                .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+
+              // Calcular cumplimiento: ver si el checkin más reciente fue dentro de las últimas 24h
+              const cumplimiento = (() => {
+                if (caso.status !== 'active') return null
+                if (!ultimo) return { label: 'Sin check-ins', color: 'var(--warning)' }
+                const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+                const ultimoDate = new Date(ultimo.created_at)
+                if (ultimoDate >= hace24h && (ultimo.status === 'completed' || ultimo.status === 'passed')) return { label: 'Al día', color: 'var(--success)' }
+                if (ultimoDate >= hace24h && ultimo.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
+                return { label: 'En mora', color: 'var(--danger)' }
+              })()
+
               return (
                 <tr key={caso.id} style={{
                   borderBottom: i < casos.length - 1 ? '1px solid var(--border)' : 'none',
@@ -95,12 +108,20 @@ export default async function CasosPage() {
                       {STATUS_LABEL[caso.status] ?? caso.status}
                     </span>
                   </td>
+                  <td style={{ padding: '16px 20px' }}>
+                    {cumplimiento ? (
+                      <span style={{
+                        padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                        background: cumplimiento.color + '22', color: cumplimiento.color,
+                      }}>{cumplimiento.label}</span>
+                    ) : '—'}
+                  </td>
                   <td style={{ padding: '16px 20px', fontSize: 14, color: 'var(--text-muted)' }}>
                     {checkins.length}
                   </td>
                   <td style={{ padding: '16px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
                     {ultimo ? new Date(ultimo.created_at).toLocaleString('es-CO', {
-                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
+                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
                     }) : '—'}
                   </td>
                   <td style={{ padding: '16px 20px' }}>

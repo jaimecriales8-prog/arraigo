@@ -16,7 +16,8 @@ export default function RootLayout() {
       router.replace('/(auth)/login')
     } else if (session && profile && inAuth) {
       if (profile.role === 'imputado') router.replace('/(imputado)/home')
-      else router.replace('/(auth)/login') // otros roles usan el panel web
+      else if (profile.role === 'tecnico') router.replace('/(tecnico)/home')
+      else router.replace('/(auth)/login')
     }
   }, [session, profile, loading])
 
@@ -24,6 +25,7 @@ export default function RootLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="(auth)" />
       <Stack.Screen name="(imputado)" />
+      <Stack.Screen name="(tecnico)" />
     </Stack>
   )
 }

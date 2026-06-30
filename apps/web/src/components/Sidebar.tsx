@@ -2,6 +2,14 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
+import { useEffect, useState } from 'react'
+
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: 'Super Admin',
+  judicial: 'Panel Judicial',
+  operador: 'Panel Operador',
+  tecnico: 'Panel Técnico',
+}
 
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: '📊' },
@@ -12,10 +20,19 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
+  const [roleLabel, setRoleLabel] = useState('Panel')
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
+      if (data?.role) setRoleLabel(ROLE_LABEL[data.role] ?? data.role)
+    })
+  }, [])
 
   async function logout() {
     await supabase.auth.signOut()
@@ -44,7 +61,7 @@ export default function Sidebar() {
           }}>🏠</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Arraigo</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Panel Judicial</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{roleLabel}</div>
           </div>
         </div>
       </div>

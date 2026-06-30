@@ -5,14 +5,26 @@ import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
 
 const STATUS_COLOR: Record<string, string> = {
+  completed: 'var(--success)',
   passed: 'var(--success)',
   failed: 'var(--danger)',
   pending: 'var(--warning)',
 }
 const STATUS_LABEL: Record<string, string> = {
+  completed: 'Aprobado',
   passed: 'Aprobado',
   failed: 'Fallido',
   pending: 'Pendiente',
+}
+const SORPRESA_COLOR: Record<string, string> = {
+  pending: 'var(--warning)',
+  completed: 'var(--success)',
+  expired: 'var(--danger)',
+}
+const SORPRESA_LABEL: Record<string, string> = {
+  pending: 'Pendiente',
+  completed: 'Completada',
+  expired: 'Incumplida',
 }
 
 async function getCaso(id: string) {
@@ -25,9 +37,10 @@ async function getCaso(id: string) {
   const { data: caso } = await supabase
     .from('cases')
     .select(`
-      id, case_number, status, checkin_frequency_hours, home_lat, home_lng, home_radius_m,
-      imputado:profiles!cases_imputado_id_fkey(full_name, email),
-      checkins(id, status, gps_lat, gps_lng, gps_accuracy_m, gps_is_mock, face_score, scene_score, created_at)
+      id, case_number, status, checkin_times, geofence_radius_m, address, city,
+      imputado:profiles!cases_imputado_id_fkey(full_name),
+      checkins(id, status, created_at),
+      surprise_verifications(id, status, created_at, expires_at)
     `)
     .eq('id', id)
     .single()
@@ -42,16 +55,15 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
   const checkins = (caso.checkins ?? []).sort((a: any, b: any) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
-  const passed = checkins.filter((c: any) => c.status === 'passed').length
+  const passed = checkins.filter((c: any) => c.status === 'completed' || c.status === 'passed').length
   const failed = checkins.filter((c: any) => c.status === 'failed').length
 
   return (
     <div>
-      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ marginBottom: 24 }}>
         <Link href="/dashboard/casos" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>
           ← Volver a casos
         </Link>
-        <SorpresaButton caseId={caso.id} />
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
@@ -63,10 +75,9 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
             {[
               ['Expediente', caso.case_number],
               ['Imputado', (caso.imputado as any)?.full_name ?? '—'],
-              ['Correo', (caso.imputado as any)?.email ?? '—'],
-              ['Frecuencia', `Cada ${caso.checkin_frequency_hours}h`],
-              ['Ubicación', caso.home_lat ? `${caso.home_lat.toFixed(4)}, ${caso.home_lng?.toFixed(4)}` : '—'],
-              ['Radio permitido', `${caso.home_radius_m}m`],
+              ['Dirección', `${(caso as any).address ?? '—'}, ${(caso as any).city ?? ''}`],
+              ['Horarios', ((caso as any).checkin_times ?? []).join(' · ') || '—'],
+              ['Radio permitido', `${(caso as any).geofence_radius_m ?? '—'}m`],
             ].map(([label, value]) => (
               <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
                 <span style={{ color: 'var(--text-muted)' }}>{label}</span>
@@ -102,7 +113,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {['Fecha', 'Estado', 'GPS', 'Mock', 'Cara', 'Escena'].map(h => (
+              {['Fecha', 'Estado'].map(h => (
                 <th key={h} style={{
                   padding: '12px 20px', textAlign: 'left',
                   fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
@@ -113,7 +124,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
           </thead>
           <tbody>
             {checkins.length === 0 && (
-              <tr><td colSpan={6} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin check-ins aún.</td></tr>
+              <tr><td colSpan={2} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin check-ins aún.</td></tr>
             )}
             {checkins.map((c: any, i: number) => (
               <tr key={c.id} style={{ borderBottom: i < checkins.length - 1 ? '1px solid var(--border)' : 'none' }}>
@@ -131,24 +142,55 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                     {STATUS_LABEL[c.status] ?? c.status}
                   </span>
                 </td>
-                <td style={{ padding: '14px 20px', fontSize: 12, color: 'var(--text-muted)' }}>
-                  {c.gps_lat ? `${c.gps_lat.toFixed(4)}, ${c.gps_lng?.toFixed(4)}` : '—'}
-                  {c.gps_accuracy_m ? ` ±${Math.round(c.gps_accuracy_m)}m` : ''}
-                </td>
-                <td style={{ padding: '14px 20px', fontSize: 13 }}>
-                  {c.gps_is_mock ? <span style={{ color: 'var(--danger)' }}>⚠️ Sí</span> : <span style={{ color: 'var(--success)' }}>No</span>}
-                </td>
-                <td style={{ padding: '14px 20px', fontSize: 13, color: c.face_score >= 0.8 ? 'var(--success)' : 'var(--text-muted)' }}>
-                  {c.face_score != null ? `${(c.face_score * 100).toFixed(0)}%` : '—'}
-                </td>
-                <td style={{ padding: '14px 20px', fontSize: 13, color: c.scene_score >= 0.82 ? 'var(--success)' : 'var(--text-muted)' }}>
-                  {c.scene_score != null ? `${(c.scene_score * 100).toFixed(0)}%` : '—'}
-                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {/* Verificaciones sorpresa */}
+      {(() => {
+        const sorpresas = ((caso as any).surprise_verifications ?? []).sort((a: any, b: any) =>
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        )
+        return (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginTop: 20 }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600 }}>Verificaciones sorpresa</h2>
+              <SorpresaButton caseId={caso.id} />
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  {['Enviada', 'Expira', 'Estado'].map(h => (
+                    <th key={h} style={{ padding: '12px 20px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {sorpresas.length === 0 && (
+                  <tr><td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin verificaciones sorpresa aún.</td></tr>
+                )}
+                {sorpresas.map((s: any, i: number) => (
+                  <tr key={s.id} style={{ borderBottom: i < sorpresas.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <td style={{ padding: '14px 20px', fontSize: 13 }}>
+                      {new Date(s.created_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
+                    </td>
+                    <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
+                      {new Date(s.expires_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
+                    </td>
+                    <td style={{ padding: '14px 20px' }}>
+                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: (SORPRESA_COLOR[s.status] ?? 'var(--text-muted)') + '22', color: SORPRESA_COLOR[s.status] ?? 'var(--text-muted)' }}>
+                        {SORPRESA_LABEL[s.status] ?? s.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      })()}
     </div>
   )
 }

@@ -22,16 +22,41 @@ async function getUsuarios() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
-  const { data } = await supabase
+
+  const anonClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+  )
+
+  const { data: { user } } = await anonClient.auth.getUser()
+  const { data: currentProfile } = await supabase
     .from('profiles')
-    .select('id, full_name, email, role, created_at')
-    .neq('role', 'imputado')
-    .order('created_at', { ascending: false })
-  return data ?? []
+    .select('role')
+    .eq('id', user!.id)
+    .single()
+
+  const currentRole = currentProfile?.role ?? 'judicial'
+
+  const [{ data: profiles }, { data: authData }] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('id, full_name, role, created_at')
+      .neq('role', 'imputado')
+      .order('created_at', { ascending: false }),
+    supabase.auth.admin.listUsers(),
+  ])
+
+  const emailMap = new Map((authData?.users ?? []).map(u => [u.id, u.email]))
+
+  return {
+    usuarios: (profiles ?? []).map(p => ({ ...p, email: emailMap.get(p.id) ?? '' })),
+    currentRole,
+  }
 }
 
 export default async function UsuariosPage() {
-  const usuarios = await getUsuarios()
+  const { usuarios, currentRole } = await getUsuarios()
 
   return (
     <div>
@@ -88,7 +113,7 @@ export default async function UsuariosPage() {
         </div>
 
         {/* Formulario */}
-        <CrearUsuarioForm />
+        <CrearUsuarioForm currentRole={currentRole} />
       </div>
     </div>
   )

@@ -13,9 +13,6 @@ export async function uploadPhoto(base64: string, path: string): Promise<string>
 
   if (error) throw error
 
-  const { data } = supabase.storage
-    .from('checkin-evidence')
-    .getPublicUrl(path)
-
-  return data.publicUrl
+  // Bucket privado — usar path como referencia, la URL se genera al leer
+  return path
 }

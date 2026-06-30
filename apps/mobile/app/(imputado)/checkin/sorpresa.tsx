@@ -1,10 +1,12 @@
-import { useEffect, useState, useCallback } from 'react'
-import { View, Text, StyleSheet, Pressable } from 'react-native'
+import { useEffect, useState } from 'react'
+import { View, Text, StyleSheet, Pressable, ActivityIndicator } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { supabase } from '@/lib/supabase'
+import { useCheckinStore } from '@/hooks/useCheckinStore'
 
 export default function SorpresaScreen() {
   const { verification_id, expires_at } = useLocalSearchParams<{ verification_id: string; expires_at: string }>()
+  const { setSurpriseVerificationId } = useCheckinStore()
   const [secondsLeft, setSecondsLeft] = useState(0)
   const [expired, setExpired] = useState(false)
 
@@ -31,10 +33,37 @@ export default function SorpresaScreen() {
   const minutes = Math.floor(secondsLeft / 60)
   const seconds = secondsLeft % 60
 
-  function startCheckin() {
+  async function startCheckin() {
+    // Crear checkin de tipo sorpresa en la DB
+    const { data: caso } = await supabase
+      .from('surprise_verifications')
+      .select('case_id')
+      .eq('id', verification_id)
+      .single()
+
+    if (!caso) return
+
+    const now = new Date()
+    const closes = new Date(expires_at)
+    const { data: checkin } = await supabase
+      .from('checkins')
+      .insert({
+        case_id: caso.case_id,
+        type: 'surprise',
+        scheduled_at: now.toISOString(),
+        window_closes_at: closes.toISOString(),
+        expires_at: closes.toISOString(),
+        status: 'pending',
+      })
+      .select('id')
+      .single()
+
+    if (!checkin) return
+
+    setSurpriseVerificationId(verification_id)
     router.push({
       pathname: '/(imputado)/checkin/selfie',
-      params: { surprise_id: verification_id }
+      params: { checkinId: checkin.id },
     })
   }
 

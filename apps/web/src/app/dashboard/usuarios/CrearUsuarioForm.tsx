@@ -2,16 +2,23 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-const ROLES = [
-  { value: 'admin', label: 'Administrador' },
-  { value: 'judicial', label: 'Entidad Judicial' },
-  { value: 'tecnico', label: 'Técnico' },
-]
+const ROLES_POR_ROL: Record<string, { value: string; label: string }[]> = {
+  super_admin: [
+    { value: 'judicial', label: 'Entidad Judicial' },
+    { value: 'tecnico', label: 'Técnico' },
+  ],
+  judicial: [
+    { value: 'imputado', label: 'Imputado (arrestado)' },
+    { value: 'operador', label: 'Operador' },
+  ],
+}
 
-export default function CrearUsuarioForm() {
+export default function CrearUsuarioForm({ currentRole }: { currentRole: string }) {
+  const rolesDisponibles = ROLES_POR_ROL[currentRole] ?? []
+
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
-  const [role, setRole] = useState('judicial')
+  const [role, setRole] = useState(rolesDisponibles[0]?.value ?? '')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
   const router = useRouter()
@@ -33,7 +40,7 @@ export default function CrearUsuarioForm() {
       setResult({ ok: true, msg: `Usuario creado. Se envió invitación a ${email}` })
       setFullName('')
       setEmail('')
-      setRole('judicial')
+      setRole(rolesDisponibles[0]?.value ?? '')
       router.refresh()
     } else {
       setResult({ ok: false, msg: data.error ?? 'Error al crear usuario' })
@@ -67,7 +74,7 @@ export default function CrearUsuarioForm() {
         <div>
           <label style={labelStyle}>Rol</label>
           <select value={role} onChange={e => setRole(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-            {ROLES.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+            {rolesDisponibles.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
           </select>
         </div>
 

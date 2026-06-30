@@ -46,6 +46,14 @@ export default function ResultadoScreen() {
       setOverallScore(data.overall_score)
       setStatus(data.overall_passed ? 'passed' : 'failed')
       setFailReason(data.failure_reason ?? null)
+
+      if (store.surpriseVerificationId) {
+        await supabase
+          .from('surprise_verifications')
+          .update({ status: 'completed' })
+          .eq('id', store.surpriseVerificationId)
+      }
+
       store.reset()
     } catch (e) {
       console.error(e)

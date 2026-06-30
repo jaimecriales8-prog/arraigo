@@ -15,7 +15,7 @@ export async function requestLocationPermission(): Promise<boolean> {
 
 export async function getCurrentLocation(): Promise<GPSReading> {
   const location = await Location.getCurrentPositionAsync({
-    accuracy: Location.Accuracy.High,
+    accuracy: Location.Accuracy.Balanced,
   })
 
   return {

@@ -1,12 +1,51 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl } from 'react-native'
-import { useRouter } from 'expo-router'
+import { useEffect, useRef, useCallback } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, AppState } from 'react-native'
+import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '../../src/hooks/useAuth'
 import { useCase } from '../../src/hooks/useCase'
+import { supabase } from '../../src/lib/supabase'
 
 export default function HomeScreen() {
   const router = useRouter()
   const { profile, signOut } = useAuth()
   const { caseData, pendingCheckin, loading, reload } = useCase()
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const redirectedRef = useRef(false)
+
+  // Recargar cuando la pantalla vuelve a tener foco (después de un checkin)
+  useFocusEffect(useCallback(() => {
+    reload()
+    redirectedRef.current = false
+  }, []))
+
+  useEffect(() => {
+    if (!caseData?.id) return
+    redirectedRef.current = false
+
+    async function checkSorpresa() {
+      if (redirectedRef.current) return
+      const { data } = await supabase
+        .from('surprise_verifications')
+        .select('id, expires_at')
+        .eq('case_id', caseData!.id)
+        .eq('status', 'pending')
+        .gt('expires_at', new Date().toISOString())
+        .limit(1)
+        .maybeSingle()
+
+      if (data?.id && !redirectedRef.current) {
+        redirectedRef.current = true
+        router.push({
+          pathname: '/(imputado)/checkin/sorpresa',
+          params: { verification_id: data.id, expires_at: data.expires_at },
+        })
+      }
+    }
+
+    checkSorpresa()
+    pollingRef.current = setInterval(checkSorpresa, 15000)
+    return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
+  }, [caseData?.id])
 
   const now = new Date()
   const windowOpen = pendingCheckin

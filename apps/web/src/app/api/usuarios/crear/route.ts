@@ -36,6 +36,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Sin permisos para crear usuarios' }, { status: 403 })
   }
 
+  // Validar roles permitidos por quien crea
+  const rolesPermitidos: Record<string, string[]> = {
+    super_admin: ['judicial', 'tecnico'],
+    judicial: ['imputado', 'operador'],
+  }
+  const permitidos = rolesPermitidos[currentProfile.role]
+  if (!permitidos || !permitidos.includes(role)) {
+    return NextResponse.json({ error: 'No puede crear usuarios con ese rol' }, { status: 403 })
+  }
+
   // Create auth user with temp password (user can reset later)
   const tempPassword = Math.random().toString(36).slice(-10) + 'A1!'
   const { data: newUser, error: authError } = await supabase.auth.admin.createUser({
