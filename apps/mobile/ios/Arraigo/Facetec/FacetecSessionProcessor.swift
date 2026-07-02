@@ -4,36 +4,49 @@ import FaceTecSDK
 
 // Procesador de sesión FaceTec. Sigue la estructura obligatoria del SDK:
 // recibe el sessionRequestBlob → lo manda al servidor → devuelve el responseBlob.
-// En Managed Testing el "servidor" es api.facetec.com con las cabeceras de testing.
+//
+// Milestone 2 (proxy): los blobs van a NUESTRO Edge Function (facetec-proxy),
+// que los reenvía a FaceTec y registra el veredicto server-side.
+// El teléfono nunca decide el resultado — solo transporta blobs encriptados.
 class FacetecSessionProcessor: NSObject, FaceTecSessionRequestProcessor, URLSessionTaskDelegate {
 
   private let refID: String
   private let endpoint: String
-  private let deviceKey: String
+  private let authToken: String
+  private let kind: String          // "enroll" | "auth"
+  private let checkinId: String?
   private let completion: ([String: Any]) -> Void
   private var latestServerResult: [String: Any]? = nil
   private var errorCount = 0
   private static let MAX_RETRIES = 4
 
-  init(refID: String, endpoint: String, deviceKey: String, completion: @escaping ([String: Any]) -> Void) {
+  init(refID: String, endpoint: String, authToken: String, kind: String, checkinId: String?,
+       completion: @escaping ([String: Any]) -> Void) {
     self.refID = refID
     self.endpoint = endpoint
-    self.deviceKey = deviceKey
+    self.authToken = authToken
+    self.kind = kind
+    self.checkinId = checkinId
     self.completion = completion
     super.init()
   }
 
   // Llamado por el SDK cuando necesita procesar una sesión
   func onSessionRequest(sessionRequestBlob: String, sessionRequestCallback: FaceTecSessionRequestProcessorCallback) {
-    var payload: [String: Any] = ["requestBlob": sessionRequestBlob]
-    if !refID.isEmpty { payload["externalDatabaseRefID"] = refID }
+    var payload: [String: Any] = [
+      "requestBlob": sessionRequestBlob,
+      "kind": kind,
+      // El proxy exige que el refID sea el usuario del JWT — anti-suplantación
+      "externalDatabaseRefID": refID,
+      // Header que la Testing API exige; lo genera el SDK en el dispositivo
+      "testingApiHeader": FaceTec.sdk.getTestingAPIHeader(),
+    ]
+    if let checkinId = checkinId { payload["checkinId"] = checkinId }
 
     var request = URLRequest(url: URL(string: endpoint)!)
     request.httpMethod = "POST"
     request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-    // Cabeceras SOLO para Managed Testing — remover al usar tu middleware + FaceTec Server
-    request.addValue(deviceKey, forHTTPHeaderField: "X-Device-Key")
-    request.addValue(FaceTec.sdk.getTestingAPIHeader(), forHTTPHeaderField: "X-Testing-API-Header")
+    request.addValue("Bearer \(authToken)", forHTTPHeaderField: "Authorization")
     request.httpBody = try! JSONSerialization.data(withJSONObject: payload, options: [])
 
     let config = URLSessionConfiguration.default
@@ -69,18 +82,12 @@ class FacetecSessionProcessor: NSObject, FaceTecSessionRequestProcessor, URLSess
       callback.abortOnCatastrophicError()
       return ""
     }
-    // Guardar el resultado del servidor para exponerlo a JS (descubrir el contrato en las 1ras pruebas)
     self.latestServerResult = json
     guard let blob = json["responseBlob"] as? String else {
       callback.abortOnCatastrophicError()
       return ""
     }
     return blob
-  }
-
-  // Progreso de subida → barra de progreso del SDK
-  func urlSession(_ session: URLSession, task: URLSessionTask, didSendBodyData bytesSent: Int64, totalBytesSent: Int64, totalBytesExpectedToSend: Int64) {
-    // El callback de progreso se maneja internamente por el SDK vía processResponse; omitido aquí.
   }
 
   // Llamado cuando el SDK termina o se cancela
@@ -92,11 +99,9 @@ class FacetecSessionProcessor: NSObject, FaceTecSessionRequestProcessor, URLSess
       "success": success,
       "sessionStatus": String(describing: status),
     ]
-    // Campos del servidor (Managed Testing) — útiles para leer el veredicto de match/liveness
     if let server = latestServerResult {
       info["wasProcessed"] = server["wasProcessed"] ?? NSNull()
       if let result = server["result"] { info["result"] = result }
-      if let scanResultBlob = server["scanResultBlob"] { info["hasScanResultBlob"] = !(scanResultBlob is NSNull) }
     }
     DispatchQueue.main.async { self.completion(info) }
   }

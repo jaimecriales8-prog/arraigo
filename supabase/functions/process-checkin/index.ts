@@ -169,18 +169,29 @@ Deno.serve(async (req) => {
       }
     }
 
-    // CARA — con FaceTec usa el resultado del liveness/matching; sin él, placeholder (siempre pasa)
-    const FACE_MATCH_THRESHOLD = 80
+    // CARA — con FaceTec el veredicto se lee de facetec_sessions (registrado
+    // server-side por facetec-proxy). Lo que reporte el teléfono se IGNORA:
+    // un cliente comprometido no puede fabricar una sesión válida.
     let faceScore = 0.95
     let facePassed = true
     if (isFacetec) {
-      const match = typeof facetecMatchScore === 'number' ? facetecMatchScore : 0
-      faceScore = match / 100
-      facePassed = facetecLivenessPassed === true && match >= FACE_MATCH_THRESHOLD
+      const windowStart = new Date(Date.now() - 15 * 60 * 1000).toISOString()
+      const { data: session } = await supabase
+        .from('facetec_sessions')
+        .select('id, was_processed, error, created_at')
+        .eq('imputado_id', user.id)
+        .eq('kind', 'auth')
+        .eq('was_processed', true)
+        .is('error', null)
+        .gte('created_at', windowStart)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      facePassed = !!session
+      faceScore = facePassed ? 1.0 : 0
       if (!facePassed) {
-        failReasons.push(facetecLivenessPassed === true
-          ? `Rostro no coincide con el registrado (${match}/100)`
-          : 'No se detectó una persona real (liveness)')
+        failReasons.push('Verificación facial no registrada en el servidor')
       }
     }
 

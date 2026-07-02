@@ -45,7 +45,7 @@ function FacetecSelfie() {
     startedRef.current = true
     ;(async () => {
       try {
-        const result = await facetecAuthenticate(profile.id)
+        const result = await facetecAuthenticate(profile.id, checkinId)
         setFacetecResult(result)
         router.push({ pathname: '/(imputado)/checkin/gps', params: { checkinId } })
       } catch (e: any) {
