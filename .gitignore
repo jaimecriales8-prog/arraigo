@@ -19,3 +19,6 @@ supabase/.temp
 
 # OS
 .DS_Store
+
+# Claves APNs — nunca versionar
+*.p8
