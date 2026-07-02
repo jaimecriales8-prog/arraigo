@@ -1,10 +1,13 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import {
   View, Text, TouchableOpacity, StyleSheet, ActivityIndicator,
-  Image, ScrollView,
+  Image, ScrollView, Alert,
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRouter, useLocalSearchParams } from 'expo-router'
+import { supabase } from '../../../../src/lib/supabase'
+import { resolveFacetecEnabled } from '../../../../src/lib/config'
+import { facetecEnroll } from '../../../../src/lib/facetec'
 
 type Paso = 'frente' | 'reverso' | 'selfie' | 'procesando' | 'aprobado' | 'declinado'
 
@@ -220,10 +223,47 @@ export default function OnboardingIdentidad() {
   const [permission, requestPermission] = useCameraPermissions()
   const [paso, setPaso] = useState<Paso>('frente')
   const [fotos, setFotos] = useState<Fotos>({})
+  const [facetecEnabled, setFacetecEnabled] = useState(false)
+  const [imputadoId, setImputadoId] = useState<string | null>(null)
+  const [facetecEnrolled, setFacetecEnrolled] = useState(false)
+  const [enrolling, setEnrolling] = useState(false)
 
   useEffect(() => {
     if (permission && !permission.granted) requestPermission()
   }, [permission])
+
+  useEffect(() => {
+    if (!caseId) return
+    ;(async () => {
+      const { data } = await supabase
+        .from('cases')
+        .select('imputado_id, organizations(facetec_enabled)')
+        .eq('id', caseId)
+        .single()
+      setImputadoId((data as any)?.imputado_id ?? null)
+      const orgOverride = (data as any)?.organizations?.facetec_enabled ?? null
+      setFacetecEnabled(resolveFacetecEnabled(orgOverride))
+    })()
+  }, [caseId])
+
+  // Enrolamiento facial con FaceTec (reemplaza la selfie manual cuando el toggle está ON)
+  async function enrolarFacetec() {
+    if (!imputadoId) { Alert.alert('Error', 'No se encontró el imputado del caso.'); return }
+    setEnrolling(true)
+    try {
+      const result = await facetecEnroll(imputadoId)
+      if (result.success) {
+        setFacetecEnrolled(true)
+        setPaso('aprobado')
+      } else {
+        Alert.alert('Verificación incompleta', `La sesión no se completó (${result.sessionStatus}). Intenta de nuevo.`)
+      }
+    } catch (e: any) {
+      Alert.alert('Error FaceTec', e?.message ?? 'No se pudo completar el enrolamiento.')
+    } finally {
+      setEnrolling(false)
+    }
+  }
 
   const guardarFoto = (cual: 'frente' | 'reverso' | 'selfie', foto: { uri: string; base64: string }) => {
     const nuevasFotos = { ...fotos, [cual]: foto }
@@ -283,7 +323,28 @@ export default function OnboardingIdentidad() {
           />
         )}
 
-        {paso === 'selfie' && (
+        {paso === 'selfie' && facetecEnabled && (
+          <View style={styles.center}>
+            <View style={styles.checkBanner}>
+              <Text style={styles.checkBannerText}>✓ Documento capturado — ahora el enrolamiento facial</Text>
+            </View>
+            <Text style={styles.procesandoTitle}>Verificación facial FaceTec</Text>
+            <Text style={styles.aprobadoSub}>
+              El imputado hará un escaneo facial 3D. Esta será su referencia biométrica para los check-ins.
+            </Text>
+            <TouchableOpacity
+              style={[styles.nextBtn, enrolling && { opacity: 0.6 }]}
+              onPress={enrolarFacetec}
+              disabled={enrolling}
+            >
+              {enrolling
+                ? <ActivityIndicator color="#fff" />
+                : <Text style={styles.nextBtnText}>Iniciar escaneo facial 3D</Text>}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {paso === 'selfie' && !facetecEnabled && (
           <View style={{ flex: 1, gap: 12 }}>
             <View style={styles.checkBanner}>
               <Text style={styles.checkBannerText}>✓ Documento capturado — ahora toma la selfie del imputado</Text>
@@ -321,7 +382,9 @@ export default function OnboardingIdentidad() {
               style={styles.nextBtn}
               onPress={() => router.push({
                 pathname: `/(tecnico)/onboarding/${caseId}/gps`,
-                params: { selfieBase64: fotos.selfie?.base64 },
+                params: facetecEnrolled
+                  ? { facetecEnrolled: 'true' }
+                  : { selfieBase64: fotos.selfie?.base64 },
               })}
             >
               <Text style={styles.nextBtnText}>Continuar con GPS →</Text>

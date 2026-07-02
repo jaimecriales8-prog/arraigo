@@ -1,16 +1,156 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native'
-import { CameraView, CameraType, useCameraPermissions } from 'expo-camera'
+import { CameraView, useCameraPermissions } from 'expo-camera'
+import { Accelerometer } from 'expo-sensors'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { useCheckinStore } from '../../../src/hooks/useCheckinStore'
+import { useCase } from '../../../src/hooks/useCase'
+import { useAuth } from '../../../src/hooks/useAuth'
+import { facetecAuthenticate } from '../../../src/lib/facetec'
 
+// El usuario debe inclinar el teléfono en el orden aleatorio indicado
+// Una foto impresa no puede mover el teléfono
+type TiltDir = 'left' | 'right'
+type ChallengeStep = 'first' | 'second' | 'done'
+
+const TILT_THRESHOLD = 0.4
+const NEUTRAL_ZONE = 0.15
+
+// Dispatcher: elige el método de liveness según el toggle (FaceTec vs acelerómetro)
 export default function SelfieScreen() {
+  const { facetecEnabled, loading } = useCase()
+
+  if (loading) {
+    return (
+      <View style={[styles.container, styles.center]}>
+        <ActivityIndicator size="large" color="#2563eb" />
+      </View>
+    )
+  }
+
+  return facetecEnabled ? <FacetecSelfie /> : <AccelerometerSelfie />
+}
+
+// ── Liveness con FaceTec (3D FaceMap certificado) ────────────────────────────
+function FacetecSelfie() {
+  const router = useRouter()
+  const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
+  const { profile } = useAuth()
+  const { setFacetecResult } = useCheckinStore()
+  const [error, setError] = useState<string | null>(null)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (startedRef.current || !profile?.id) return
+    startedRef.current = true
+    ;(async () => {
+      try {
+        const result = await facetecAuthenticate(profile.id)
+        setFacetecResult(result)
+        router.push({ pathname: '/(imputado)/checkin/gps', params: { checkinId } })
+      } catch (e: any) {
+        setError(e?.message ?? 'No se pudo verificar tu identidad.')
+      }
+    })()
+  }, [profile?.id])
+
+  return (
+    <View style={[styles.container, styles.center]}>
+      {error ? (
+        <>
+          <Text style={styles.title}>Verificación facial</Text>
+          <Text style={styles.subtitle}>{error}</Text>
+          <TouchableOpacity style={styles.btn} onPress={() => router.replace('/(imputado)/home')}>
+            <Text style={styles.btnText}>Volver</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <ActivityIndicator size="large" color="#2563eb" />
+          <Text style={[styles.subtitle, { marginTop: 16 }]}>Iniciando verificación facial…</Text>
+        </>
+      )}
+    </View>
+  )
+}
+
+// ── Liveness con acelerómetro (modo actual, sin FaceTec) ─────────────────────
+function AccelerometerSelfie() {
   const router = useRouter()
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
   const { setSelfie } = useCheckinStore()
   const [permission, requestPermission] = useCameraPermissions()
   const [capturing, setCapturing] = useState(false)
+  const [step, setStep] = useState<ChallengeStep>('first')
+  const [firstDone, setFirstDone] = useState(false)
+  const [secondDone, setSecondDone] = useState(false)
   const cameraRef = useRef<CameraView>(null)
+  const stepRef = useRef<ChallengeStep>('first')
+  const neutralSeen = useRef(false)
+
+  // Orden aleatorio decidido al montar — izquierda primero o derecha primero
+  const orderRef = useRef<[TiltDir, TiltDir]>(
+    Math.random() < 0.5 ? ['left', 'right'] : ['right', 'left']
+  )
+  const order = orderRef.current
+
+  useEffect(() => {
+    Accelerometer.setUpdateInterval(80)
+    const sub = Accelerometer.addListener(({ x }) => {
+      if (stepRef.current === 'done') return
+
+      const currentDir = stepRef.current === 'first' ? order[0] : order[1]
+      const isLeft = currentDir === 'left'
+
+      if (stepRef.current === 'first') {
+        const triggered = isLeft ? x < -TILT_THRESHOLD : x > TILT_THRESHOLD
+        if (triggered) {
+          setFirstDone(true)
+          stepRef.current = 'second'
+          setStep('second')
+          neutralSeen.current = false
+        }
+        return
+      }
+
+      if (stepRef.current === 'second') {
+        if (Math.abs(x) < NEUTRAL_ZONE) neutralSeen.current = true
+        const triggered = isLeft ? x < -TILT_THRESHOLD : x > TILT_THRESHOLD
+        if (neutralSeen.current && triggered) {
+          setSecondDone(true)
+          stepRef.current = 'done'
+          setStep('done')
+          capturePhoto()
+        }
+      }
+    })
+    return () => sub.remove()
+  }, [])
+
+  const capturePhoto = useCallback(async () => {
+    if (!cameraRef.current) return
+    setCapturing(true)
+    try {
+      const photo = await cameraRef.current.takePictureAsync({
+        quality: 0.8,
+        base64: true,
+        exif: false,
+      })
+      if (photo?.base64) {
+        setSelfie(photo.base64, photo.uri)
+        router.push({ pathname: '/(imputado)/checkin/gps', params: { checkinId } })
+      }
+    } catch {
+      Alert.alert('Error', 'No se pudo tomar la foto. Intenta de nuevo.')
+      stepRef.current = 'first'
+      neutralSeen.current = false
+      setStep('first')
+      setFirstDone(false)
+      setSecondDone(false)
+    } finally {
+      setCapturing(false)
+    }
+  }, [checkinId])
 
   if (!permission) return <View style={styles.container} />
 
@@ -30,65 +170,51 @@ export default function SelfieScreen() {
     )
   }
 
-  async function capture() {
-    if (!cameraRef.current || capturing) return
-    setCapturing(true)
-    try {
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
-        base64: true,
-        exif: false,
-      })
-      if (photo?.base64) {
-        setSelfie(photo.base64, photo.uri)
-        router.push({
-          pathname: '/(imputado)/checkin/gps',
-          params: { checkinId },
-        })
-      }
-    } catch {
-      Alert.alert('Error', 'No se pudo tomar la foto. Intenta de nuevo.')
-    } finally {
-      setCapturing(false)
-    }
+  const instruction = () => {
+    if (capturing || step === 'done') return { text: '✓ Capturando…', color: '#16a34a' }
+    const currentDir = step === 'first' ? order[0] : order[1]
+    const arrow = currentDir === 'left' ? '←' : '→'
+    const side = currentDir === 'left' ? 'izquierda' : 'derecha'
+    const prefix = step === 'second' ? 'Ahora inclínalo a la ' : 'Inclina el teléfono a la '
+    return { text: `${prefix}${side} ${arrow}`, color: step === 'second' ? '#f59e0b' : '#7a9bbf' }
   }
+
+  const { text, color } = instruction()
 
   return (
     <View style={styles.container}>
-      {/* Instrucción */}
       <View style={styles.header}>
         <Text style={styles.step}>Paso 1 de 3</Text>
-        <Text style={styles.title}>Verifica tu identidad</Text>
+        <Text style={styles.title}>Verifica que eres tú</Text>
         <Text style={styles.subtitle}>
-          Mira directamente a la cámara. Asegúrate de tener buena iluminación.
+          Mira a la cámara e inclina el teléfono siguiendo las instrucciones.
         </Text>
       </View>
 
-      {/* Cámara */}
       <View style={styles.cameraContainer}>
         <CameraView
           ref={cameraRef}
           style={styles.camera}
           facing="front"
         >
-          {/* Guía oval */}
           <View style={styles.ovalGuide} />
+
+          {/* Flechas en el orden aleatorio del challenge */}
+          <View style={styles.arrowRow}>
+            <Text style={[styles.arrow, firstDone ? styles.arrowDone : styles.arrowPending]}>
+              {order[0] === 'left' ? '←' : '→'}
+            </Text>
+            <Text style={[styles.arrow, secondDone ? styles.arrowDone : styles.arrowPending]}>
+              {order[1] === 'left' ? '←' : '→'}
+            </Text>
+          </View>
         </CameraView>
       </View>
 
-      {/* Botón captura */}
       <View style={styles.footer}>
-        <TouchableOpacity
-          style={[styles.captureBtn, capturing && styles.captureBtnDisabled]}
-          onPress={capture}
-          disabled={capturing}
-        >
-          {capturing
-            ? <ActivityIndicator color="#fff" size="large" />
-            : <View style={styles.captureInner} />
-          }
-        </TouchableOpacity>
-        <Text style={styles.hint}>Toca para capturar</Text>
+        {capturing && <ActivityIndicator color="#2563eb" size="small" style={{ marginBottom: 4 }} />}
+        <Text style={[styles.instruction, { color }]}>{text}</Text>
+        <Text style={styles.hint}>La captura es automática al completar el movimiento</Text>
       </View>
     </View>
   )
@@ -107,22 +233,21 @@ const styles = StyleSheet.create({
   },
   camera: { flex: 1 },
   ovalGuide: {
-    position: 'absolute', alignSelf: 'center', top: '15%',
+    position: 'absolute', alignSelf: 'center', top: '10%',
     width: 200, height: 260, borderRadius: 120,
-    borderWidth: 2, borderColor: 'rgba(255,255,255,0.5)',
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
     borderStyle: 'dashed',
   },
-  footer: { alignItems: 'center', paddingBottom: 48 },
-  captureBtn: {
-    width: 72, height: 72, borderRadius: 36,
-    backgroundColor: '#2563eb', alignItems: 'center', justifyContent: 'center',
-    borderWidth: 4, borderColor: 'rgba(255,255,255,0.3)',
+  arrowRow: {
+    position: 'absolute', bottom: 20, left: 0, right: 0,
+    flexDirection: 'row', justifyContent: 'center', gap: 40,
   },
-  captureBtnDisabled: { opacity: 0.6 },
-  captureInner: {
-    width: 54, height: 54, borderRadius: 27, backgroundColor: '#fff',
-  },
-  hint: { color: '#4a6a8a', fontSize: 13, marginTop: 12 },
+  arrow: { fontSize: 32, fontWeight: '700' },
+  arrowPending: { color: 'rgba(255,255,255,0.3)' },
+  arrowDone: { color: '#16a34a' },
+  footer: { alignItems: 'center', paddingBottom: 48, paddingTop: 16, gap: 6 },
+  instruction: { fontSize: 16, fontWeight: '700', textAlign: 'center' },
+  hint: { color: '#4a6a8a', fontSize: 12, textAlign: 'center' },
   btn: { backgroundColor: '#2563eb', borderRadius: 10, padding: 16, marginTop: 24 },
   btnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
 })

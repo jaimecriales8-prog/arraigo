@@ -15,8 +15,8 @@ interface Checkpoint {
 const SUGERENCIAS = ['Sala principal', 'Cocina', 'Habitación', 'Entrada / puerta', 'Ventana principal', 'Baño']
 
 export default function OnboardingScan() {
-  const { caseId, lat, lng, selfieBase64 } = useLocalSearchParams<{
-    caseId: string; lat: string; lng: string; selfieBase64: string
+  const { caseId, lat, lng, selfieBase64, facetecEnrolled } = useLocalSearchParams<{
+    caseId: string; lat: string; lng: string; selfieBase64: string; facetecEnrolled: string
   }>()
   const router = useRouter()
   const cameraRef = useRef<CameraView>(null)
@@ -138,6 +138,7 @@ export default function OnboardingScan() {
               params: {
                 lat, lng,
                 selfieBase64,
+                facetecEnrolled,
                 checkpointsJson: JSON.stringify(checkpoints.map(c => ({ label: c.label, base64: c.base64 }))),
               },
             })}

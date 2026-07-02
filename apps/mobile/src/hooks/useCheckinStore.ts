@@ -13,10 +13,17 @@ interface CheckinStore {
   sceneCheckpointId: string | null
   surpriseVerificationId: string | null
 
+  // Liveness: 'accelerometer' (por defecto) o 'facetec' según el toggle
+  livenessMethod: 'accelerometer' | 'facetec'
+  facetecLivenessPassed: boolean | null
+  facetecMatchScore: number | null
+  facetecSessionId: string | null
+
   setSelfie: (base64: string, uri: string) => void
   setGPS: (lat: number, lng: number, accuracyM: number, isMock: boolean) => void
   setScene: (base64: string, uri: string, checkpointId: string) => void
   setSurpriseVerificationId: (id: string) => void
+  setFacetecResult: (r: { livenessPassed: boolean; matchScore: number; sessionId: string }) => void
   reset: () => void
 }
 
@@ -32,14 +39,27 @@ export const useCheckinStore = create<CheckinStore>((set) => ({
   sceneCheckpointId: null,
   surpriseVerificationId: null,
 
-  setSelfie: (base64, uri) => set({ selfieBase64: base64, selfieUri: uri }),
+  livenessMethod: 'accelerometer',
+  facetecLivenessPassed: null,
+  facetecMatchScore: null,
+  facetecSessionId: null,
+
+  setSelfie: (base64, uri) => set({ selfieBase64: base64, selfieUri: uri, livenessMethod: 'accelerometer' }),
   setGPS: (lat, lng, accuracyM, isMock) => set({ gpsLat: lat, gpsLng: lng, gpsAccuracyM: accuracyM, gpsIsMock: isMock }),
   setScene: (base64, uri, checkpointId) => set({ sceneBase64: base64, sceneUri: uri, sceneCheckpointId: checkpointId }),
   setSurpriseVerificationId: (id) => set({ surpriseVerificationId: id }),
+  setFacetecResult: (r) => set({
+    livenessMethod: 'facetec',
+    facetecLivenessPassed: r.livenessPassed,
+    facetecMatchScore: r.matchScore,
+    facetecSessionId: r.sessionId,
+  }),
   reset: () => set({
     selfieBase64: null, selfieUri: null,
     gpsLat: null, gpsLng: null, gpsAccuracyM: null, gpsIsMock: false,
     sceneBase64: null, sceneUri: null, sceneCheckpointId: null,
     surpriseVerificationId: null,
+    livenessMethod: 'accelerometer',
+    facetecLivenessPassed: null, facetecMatchScore: null, facetecSessionId: null,
   }),
 }))

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert, ScrollView } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import { supabase } from '../../../../src/lib/supabase'
@@ -7,23 +7,34 @@ import { uploadPhoto } from '../../../../src/lib/storage'
 type Step = 'review' | 'saving' | 'done' | 'error'
 
 export default function OnboardingConfirmar() {
-  const { caseId, lat, lng, selfieBase64, checkpointsJson } = useLocalSearchParams<{
-    caseId: string; lat: string; lng: string; selfieBase64: string; checkpointsJson: string
+  const { caseId, lat, lng, selfieBase64, checkpointsJson, facetecEnrolled } = useLocalSearchParams<{
+    caseId: string; lat: string; lng: string; selfieBase64: string; checkpointsJson: string; facetecEnrolled: string
   }>()
+  const isFacetec = facetecEnrolled === 'true'
   const router = useRouter()
   const [step, setStep] = useState<Step>('review')
   const [progress, setProgress] = useState('')
 
   const checkpoints: { label: string; base64: string }[] = checkpointsJson ? JSON.parse(checkpointsJson) : []
 
+  const savingRef = useRef(false)
+
   async function guardar() {
+    // Guard de idempotencia: evita doble ejecución si el usuario reintenta
+    // mientras una subida lenta sigue en curso (causó 104 checkpoints duplicados)
+    if (savingRef.current) return
+    savingRef.current = true
     setStep('saving')
     try {
-      // 1. Subir selfie de verificación de identidad como foto de referencia
-      setProgress('Subiendo foto del imputado…')
-      const fotoUrl = await uploadPhoto(selfieBase64, `onboarding/${caseId}/referencia.jpg`)
+      // 1. Subir selfie de referencia. Con FaceTec no hay selfie: la referencia es el
+      //    FaceMap 3D almacenado en FaceTec keyed por imputado.id.
+      let fotoUrl: string | null = null
+      if (!isFacetec) {
+        setProgress('Subiendo foto del imputado…')
+        fotoUrl = await uploadPhoto(selfieBase64, `onboarding/${caseId}/referencia.jpg`)
+      }
 
-      // 2. Subir selfie + checkpoints en paralelo
+      // 2. Subir checkpoints en paralelo
       setProgress('Subiendo escaneo del domicilio…')
       const checkpointUrls = await Promise.all(
         checkpoints.map(async (cp, i) => {
@@ -53,15 +64,21 @@ export default function OnboardingConfirmar() {
         .eq('id', caseId)
         .single()
 
-      if (caso?.imputado_id) {
+      if (caso?.imputado_id && fotoUrl) {
         await supabase
           .from('profiles')
           .update({ reference_photo_url: fotoUrl } as any)
           .eq('id', caso.imputado_id)
       }
 
-      // 5. Insertar checkpoints
+      // 5. Insertar checkpoints — desactivar los previos del caso primero
+      // para que un reintento reemplace en vez de acumular duplicados
       setProgress('Guardando puntos de verificación…')
+      await supabase
+        .from('checkpoints')
+        .update({ is_active: false })
+        .eq('case_id', caseId)
+
       const { data: { user } } = await supabase.auth.getUser()
       const { error: cpError } = await supabase
         .from('checkpoints')
@@ -80,6 +97,8 @@ export default function OnboardingConfirmar() {
       console.error(e)
       setProgress(e?.message ?? 'Error desconocido')
       setStep('error')
+    } finally {
+      savingRef.current = false
     }
   }
 
@@ -129,7 +148,7 @@ export default function OnboardingConfirmar() {
       <View style={styles.summaryCard}>
         <Text style={styles.summaryTitle}>Resumen</Text>
         <Row label="GPS capturado" value={`${parseFloat(lat).toFixed(5)}, ${parseFloat(lng).toFixed(5)}`} />
-        <Row label="Identidad verificada" value="✓ Cédula + selfie" ok />
+        <Row label="Identidad verificada" value={isFacetec ? '✓ Cédula + escaneo facial 3D' : '✓ Cédula + selfie'} ok />
         <Row label="Áreas escaneadas" value={`${checkpoints.length} punto${checkpoints.length !== 1 ? 's' : ''}`} />
         {checkpoints.map((cp, i) => (
           <Row key={i} label={`  ${i + 1}.`} value={cp.label} />

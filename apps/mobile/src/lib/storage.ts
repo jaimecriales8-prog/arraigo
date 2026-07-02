@@ -11,7 +11,7 @@ export async function uploadPhoto(base64: string, path: string): Promise<string>
       upsert: true,
     })
 
-  if (error) throw error
+  if (error) throw new Error(`Storage upload failed [${path}]: ${error.message} (${error.statusCode})`)
 
   // Bucket privado — usar path como referencia, la URL se genera al leer
   return path

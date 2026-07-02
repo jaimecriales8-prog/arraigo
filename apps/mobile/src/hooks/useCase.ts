@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import { useAuth } from './useAuth'
+import { resolveFacetecEnabled } from '../lib/config'
 
 export interface CaseData {
   id: string
@@ -26,6 +27,7 @@ export function useCase() {
   const { profile } = useAuth()
   const [caseData, setCaseData] = useState<CaseData | null>(null)
   const [pendingCheckin, setPendingCheckin] = useState<PendingCheckin | null>(null)
+  const [facetecEnabled, setFacetecEnabled] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,12 +40,15 @@ export function useCase() {
 
     const { data: caseRow } = await supabase
       .from('cases')
-      .select('id, case_number, status, address, city, checkin_times, checkin_window_min, timezone, geofence_radius_m, location')
+      .select('id, case_number, status, address, city, checkin_times, checkin_window_min, timezone, geofence_radius_m, location, organizations(facetec_enabled)')
       .eq('imputado_id', profile!.id)
       .eq('status', 'active')
       .single()
 
     setCaseData(caseRow)
+    // El override de la organización manda; si es null, cae al default global (FACETEC_DEFAULT)
+    const orgOverride = (caseRow as any)?.organizations?.facetec_enabled ?? null
+    setFacetecEnabled(resolveFacetecEnabled(orgOverride))
 
     if (caseRow) {
       // Buscar el check-in pendiente más próximo dentro de la ventana activa
@@ -65,5 +70,5 @@ export function useCase() {
     setLoading(false)
   }
 
-  return { caseData, pendingCheckin, loading, reload: loadCase }
+  return { caseData, pendingCheckin, facetecEnabled, loading, reload: loadCase }
 }

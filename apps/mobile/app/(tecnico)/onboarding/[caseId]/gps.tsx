@@ -4,7 +4,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router'
 import { getCurrentLocation, requestLocationPermission } from '../../../../src/lib/gps'
 
 export default function OnboardingGPS() {
-  const { caseId, selfieBase64 } = useLocalSearchParams<{ caseId: string; selfieBase64: string }>()
+  const { caseId, selfieBase64, facetecEnrolled } = useLocalSearchParams<{ caseId: string; selfieBase64: string; facetecEnrolled: string }>()
   const router = useRouter()
   const [loading, setLoading] = useState(false)
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
@@ -73,7 +73,7 @@ export default function OnboardingGPS() {
             style={styles.nextBtn}
             onPress={() => router.push({
               pathname: `/(tecnico)/onboarding/${caseId}/scan`,
-              params: { lat: coords.lat, lng: coords.lng, selfieBase64 },
+              params: { lat: coords.lat, lng: coords.lng, selfieBase64, facetecEnrolled },
             })}
           >
             <Text style={styles.nextBtnText}>Continuar →</Text>

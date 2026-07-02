@@ -1,0 +1,12 @@
+diff --git a/node_modules/expo-face-detector/ios/EXFaceDetector/EXFaceDetectorManager.m b/node_modules/expo-face-detector/ios/EXFaceDetector/EXFaceDetectorManager.m
+index f6ff8d7..e52d9b8 100644
+--- a/node_modules/expo-face-detector/ios/EXFaceDetector/EXFaceDetectorManager.m
++++ b/node_modules/expo-face-detector/ios/EXFaceDetector/EXFaceDetectorManager.m
+@@ -5,6 +5,7 @@
+ //  Created by Stanisław Chmiela on 22.11.2017.
+ //  Copyright © 2017 650 Industries. All rights reserved.
+ 
++#import <EXCore/EXDefines.h>
+ #import <EXFaceDetector/EXFaceEncoder.h>
+ #import <EXFaceDetector/EXFaceDetectorUtils.h>
+ #import <EXFaceDetector/EXFaceDetectorModule.h>

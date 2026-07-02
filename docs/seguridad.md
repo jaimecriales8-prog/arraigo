@@ -117,3 +117,22 @@ Los datos del imputado no se comparten con terceros. La empresa Arraigo es opera
 - [ ] Penetration testing externo
 - [ ] Auditoría de cumplimiento Habeas Data
 - [ ] Cifrado de campos sensibles a nivel de aplicación (nombres, documentos)
+
+## Liveness facial — FaceTec (2026-07)
+
+**Decisión:** FaceTec para liveness certificado (iBeta ISO 30107-3 Nivel 1/2) + matching 3D:3D. Genera FaceMap 3D desde cámara 2D normal → funciona en iOS 12+ / Android 5+ sin hardware especial (ARKit descartado: requiere TrueDepth y el dispositivo es del imputado).
+
+**Por qué:** el liveness por acelerómetro NO detecta foto impresa (solo mide movimiento del teléfono). El momento crítico es el check-in NO supervisado, no el enrolamiento (que supervisa el técnico presencialmente).
+
+**Arquitectura:**
+- SDK cliente (`ios/Arraigo/Facetec/` — puente RN nativo propio) captura el FaceMap.
+- El veredicto lo determina el SERVIDOR, nunca el cliente. Hoy: Managed Testing (api.facetec.com, gratis, desarrollo). Producción: FaceTec Server self-hosted (Server Key pendiente) — los datos biométricos no salen de la infraestructura propia (Habeas Data).
+- `externalDatabaseRefID` = `profiles.id` del imputado (ata enrolamiento ↔ verificación).
+
+**Feature toggle:** default global `EXPO_PUBLIC_FACETEC_DEFAULT` + override por organización (`organizations.facetec_enabled`, null = hereda). OFF ⇒ flujo acelerómetro intacto. `checkins.liveness_method` registra el método usado (peso probatorio).
+
+**Deuda de seguridad (Milestone 2):** en Managed Testing la app reporta el resultado — un cliente comprometido podría falsificarlo. Con la Server Key, verificar el match server-side en el middleware antes de aceptar el check-in.
+
+## Verificación de escena con IA (2026-07)
+
+`process-checkin` compara la foto de escena contra la referencia del checkpoint con GPT-4o-mini Vision (signed URLs de 60 s, bucket privado). **Fail-closed:** si la comparación falla por cualquier motivo (red, API, parsing), el check-in FALLA — nunca pasa por defecto, porque pasar silenciosamente anularía la esencia de la verificación de sitio.

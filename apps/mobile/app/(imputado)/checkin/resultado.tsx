@@ -15,14 +15,19 @@ export default function ResultadoScreen() {
   const [status, setStatus] = useState<ResultStatus>('submitting')
   const [overallScore, setOverallScore] = useState<number | null>(null)
   const [failReason, setFailReason] = useState<string | null>(null)
+  const [errorMsg, setErrorMsg] = useState<string>('')
 
   useEffect(() => { submit() }, [])
 
   async function submit() {
     setStatus('submitting')
     try {
-      // 1. Subir fotos a Storage
-      const selfieUrl = await uploadPhoto(store.selfieBase64!, `checkins/${checkinId}/selfie.jpg`)
+      const isFacetec = store.livenessMethod === 'facetec'
+
+      // 1. Subir fotos a Storage. En modo FaceTec no hay selfie que subir (el FaceMap lo procesa FaceTec).
+      const selfieUrl = isFacetec
+        ? null
+        : await uploadPhoto(store.selfieBase64!, `checkins/${checkinId}/selfie.jpg`)
       const sceneUrl = await uploadPhoto(store.sceneBase64!, `checkins/${checkinId}/scene.jpg`)
 
       // 2. Llamar Edge Function que verifica y puntúa
@@ -36,6 +41,10 @@ export default function ResultadoScreen() {
           gpsLng: store.gpsLng,
           gpsAccuracyM: store.gpsAccuracyM,
           gpsIsMock: store.gpsIsMock,
+          livenessMethod: store.livenessMethod,
+          facetecLivenessPassed: store.facetecLivenessPassed,
+          facetecMatchScore: store.facetecMatchScore,
+          facetecSessionId: store.facetecSessionId,
           appVersion: Application.nativeApplicationVersion ?? '1.0.0',
           osVersion: `${Application.nativeBuildVersion}`,
         },
@@ -55,8 +64,10 @@ export default function ResultadoScreen() {
       }
 
       store.reset()
-    } catch (e) {
-      console.error(e)
+    } catch (e: any) {
+      const msg = e?.message ?? e?.error ?? JSON.stringify(e) ?? 'Error desconocido'
+      console.error('[resultado] error:', msg)
+      setErrorMsg(msg)
       setStatus('error')
     }
   }
@@ -109,8 +120,8 @@ export default function ResultadoScreen() {
             <Text style={styles.icon}>✕</Text>
           </View>
           <Text style={styles.errorTitle}>Error de conexión</Text>
-          <Text style={styles.errorHint}>
-            No se pudo enviar la verificación. Verifica tu conexión a internet e intenta de nuevo.
+          <Text style={styles.errorHint} selectable={true}>
+            {errorMsg || 'No se pudo enviar la verificación.'}
           </Text>
           <TouchableOpacity style={styles.btn} onPress={submit}>
             <Text style={styles.btnText}>Reintentar</Text>
