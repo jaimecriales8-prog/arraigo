@@ -42,6 +42,7 @@ Deno.serve(async (req) => {
       checkinId, selfieUrl, sceneUrl, gpsLat, gpsLng, gpsAccuracyM, gpsIsMock,
       sceneCheckpointId, appVersion, osVersion,
       livenessMethod, facetecLivenessPassed, facetecMatchScore, facetecSessionId,
+      surpriseVerificationId,
     } = body
 
     const isFacetec = livenessMethod === 'facetec'
@@ -96,12 +97,15 @@ Deno.serve(async (req) => {
 
     if (openaiKey && sceneCheckpointId) {
       try {
-        // Cargar checkpoint de referencia
+        // Cargar checkpoint de referencia — VALIDANDO que pertenece a ESTE caso.
+        // (Anti-fraude: el cliente no puede referenciar checkpoints de otro caso
+        // ni elegir uno arbitrario.)
         const { data: checkpoint } = await supabase
           .from('checkpoints')
-          .select('photo_url')
+          .select('photo_url, case_id')
           .eq('id', sceneCheckpointId)
-          .single()
+          .eq('case_id', checkin.case_id)
+          .maybeSingle()
 
         if (checkpoint?.photo_url) {
           // Normalizar: el photo_url puede venir como URL pública completa (datos viejos)
@@ -112,7 +116,9 @@ Deno.serve(async (req) => {
             return i >= 0 ? u.slice(i + marker.length) : u
           }
           const refPath = toPath(checkpoint.photo_url)
-          const scenePath = toPath(sceneUrl)
+          // Anti-fraude: la ruta de la escena la DERIVA el servidor del checkinId,
+          // no se confía del cliente (evita apuntar sceneUrl a la foto de referencia).
+          const scenePath = `checkins/${checkinId}/scene.jpg`
 
           // Generar signed URLs (60 segundos es suficiente para la llamada a OpenAI)
           const [sceneRes, refRes] = await Promise.all([
@@ -198,6 +204,7 @@ Reply with ONLY a JSON object:
         .select('id, was_processed, error, created_at')
         .eq('imputado_id', user.id)
         .eq('kind', 'auth')
+        .eq('checkin_id', checkinId)   // atada a ESTE check-in (evita replay entre check-ins)
         .eq('was_processed', true)
         .is('error', null)
         .gte('created_at', windowStart)
@@ -232,7 +239,7 @@ Reply with ONLY a JSON object:
       scene_checkpoint_id: sceneCheckpointId ?? null,
       scene_score: sceneScore / 100,   // OpenAI da 0-100; la columna es NUMERIC(4,3) 0-1
       scene_passed: scenePassed,
-      scene_photo_url: sceneUrl,
+      scene_photo_url: `checkins/${checkinId}/scene.jpg`,
       overall_score: overallScore,
       overall_passed: overallPassed,
       failure_reason: failureReason,
@@ -246,6 +253,17 @@ Reply with ONLY a JSON object:
         JSON.stringify({ error: 'No se pudo guardar el resultado', detail: updateError.message }),
         { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
       )
+    }
+
+    // Marcar la sorpresa como completada (SERVER-SIDE — el cliente ya no puede).
+    // Solo si pertenece a este caso y sigue pendiente.
+    if (surpriseVerificationId) {
+      await supabase
+        .from('surprise_verifications')
+        .update({ status: 'completed' })
+        .eq('id', surpriseVerificationId)
+        .eq('case_id', checkin.case_id)
+        .eq('status', 'pending')
     }
 
     if (!gpsPassed || gpsIsMock) {

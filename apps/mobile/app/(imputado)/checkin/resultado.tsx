@@ -47,6 +47,8 @@ export default function ResultadoScreen() {
           facetecSessionId: store.facetecSessionId,
           appVersion: Application.nativeApplicationVersion ?? '1.0.0',
           osVersion: `${Application.nativeBuildVersion}`,
+          // La marca de sorpresa completada la hace el servidor (no el cliente)
+          surpriseVerificationId: store.surpriseVerificationId ?? null,
         },
       })
 
@@ -55,13 +57,6 @@ export default function ResultadoScreen() {
       setOverallScore(data.overall_score)
       setStatus(data.overall_passed ? 'passed' : 'failed')
       setFailReason(data.failure_reason ?? null)
-
-      if (store.surpriseVerificationId) {
-        await supabase
-          .from('surprise_verifications')
-          .update({ status: 'completed' })
-          .eq('id', store.surpriseVerificationId)
-      }
 
       store.reset()
     } catch (e: any) {

@@ -83,11 +83,33 @@ Deno.serve(async (req) => {
   // Get case + imputado push token
   const { data: caso } = await supabase
     .from('cases')
-    .select('id, organization_id, imputado:profiles!cases_imputado_id_fkey(id, push_token, full_name)')
+    .select('id, organization_id, supervisor_id, imputado:profiles!cases_imputado_id_fkey(id, push_token, full_name)')
     .eq('id', case_id)
     .single()
 
   if (!caso) return new Response('Case not found', { status: 404 })
+
+  // Control de acceso: solo roles con autoridad, y SOLO sobre casos de su
+  // organización (o el supervisor asignado). Impide que un imputado —o alguien
+  // de otra organización— dispare sorpresas sobre cualquier caso.
+  const { data: requester } = await supabase
+    .from('profiles')
+    .select('role, organization_id')
+    .eq('id', user.id)
+    .single()
+
+  const allowedRoles = ['super_admin', 'org_admin', 'officer', 'operador', 'judicial']
+  const sameOrg = requester?.organization_id === caso.organization_id
+  const isSupervisor = caso.supervisor_id === user.id
+  const authorized =
+    requester?.role === 'super_admin' ||
+    (requester && allowedRoles.includes(requester.role) && (sameOrg || isSupervisor))
+
+  if (!authorized) {
+    return new Response(JSON.stringify({ error: 'Forbidden' }), {
+      status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
+    })
+  }
 
   const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString()
 
