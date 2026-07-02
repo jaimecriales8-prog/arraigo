@@ -128,11 +128,23 @@ Deno.serve(async (req) => {
               headers: { 'Authorization': `Bearer ${openaiKey}`, 'Content-Type': 'application/json' },
               body: JSON.stringify({
                 model: 'gpt-4o-mini',
-                max_tokens: 50,
+                max_tokens: 100,
                 messages: [{
                   role: 'user',
                   content: [
-                    { type: 'text', text: 'Compare these two photos of interior spaces. The first is a live photo, the second is the reference. Are they the same room or space? Reply with ONLY a JSON object: {"match": true/false, "score": 0-100}' },
+                    { type: 'text', text: `You are verifying that a live photo was taken in the same physical space as a reference photo, for a home-detention monitoring system.
+
+Photo 1 is the LIVE photo just taken. Photo 2 is the REFERENCE.
+
+Evaluate two things:
+1. SAME SPACE: compare the physical structure — furniture, windows, wall/floor geometry, fixed objects. IMPORTANT: differences in lighting are NORMAL and must NOT lower the match (day vs night, artificial lamps, shadows, curtains open/closed). Small changes of movable objects are also normal.
+2. RE-PHOTOGRAPHY: check if the live photo appears to be a photo OF a photo or OF a screen instead of the real space: moiré/pixel patterns, paper or screen edges/bezels, glare off a flat surface, uniformly flat perspective, a printed photo's borders.
+
+Reply with ONLY a JSON object:
+{"match": true/false, "score": 0-100, "rephotographed": true/false}
+- match: true only if it is the same physical space
+- score: confidence it is the same space (ignore lighting differences)
+- rephotographed: true only if there is CLEAR evidence of photo-of-photo/screen (when in doubt, false)` },
                     { type: 'image_url', image_url: { url: signedScene.signedUrl, detail: 'low' } },
                     { type: 'image_url', image_url: { url: signedRef.signedUrl, detail: 'low' } },
                   ],
@@ -146,7 +158,12 @@ Deno.serve(async (req) => {
               const parsed = JSON.parse(content.match(/\{[^}]+\}/)?.[0] ?? '{}')
               if (typeof parsed.score === 'number') sceneScore = parsed.score
               if (typeof parsed.match === 'boolean') scenePassed = parsed.match
-              if (!scenePassed) failReasons.push(`La foto no coincide con el punto de referencia solicitado`)
+              if (parsed.rephotographed === true) {
+                scenePassed = false
+                failReasons.push('La foto de la escena parece ser una foto de una foto o pantalla')
+              } else if (!scenePassed) {
+                failReasons.push('La foto no coincide con el punto de referencia solicitado')
+              }
             } else {
               const errBody = await aiRes.text()
               console.error(`OpenAI ${aiRes.status}: ${errBody.slice(0, 300)}`)
