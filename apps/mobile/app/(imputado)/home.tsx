@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, A
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '../../src/hooks/useAuth'
 import { useCase } from '../../src/hooks/useCase'
-import { useCheckinNotifications } from '../../src/hooks/usePushNotifications'
+import { useCheckinNotifications, useSurprisePush } from '../../src/hooks/usePushNotifications'
 import { supabase } from '../../src/lib/supabase'
 
 export default function HomeScreen() {
@@ -15,6 +15,8 @@ export default function HomeScreen() {
 
   // Notificaciones locales diarias según los horarios del caso
   useCheckinNotifications(caseData?.checkin_times as string[] | undefined, caseData?.checkin_window_min)
+  // Registro del token APNs para push de sorpresas
+  useSurprisePush(profile?.id)
 
   // Recargar cuando la pantalla vuelve a tener foco (después de un checkin)
   useFocusEffect(useCallback(() => {

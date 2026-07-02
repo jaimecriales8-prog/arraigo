@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
+import { supabase } from '../lib/supabase'
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -26,13 +27,56 @@ export function useCheckinNotifications(checkinTimes: string[] | undefined, wind
 
     scheduleAll(checkinTimes, windowMin)
 
-    // Al tocar la notificación, llevar directo al inicio (donde está el botón de verificación)
-    responseListener.current = Notifications.addNotificationResponseReceivedListener(() => {
-      router.push('/(imputado)/home')
+    // Al tocar una notificación: sorpresa → directo al countdown; el resto → home
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, string> | undefined
+      if (data?.type === 'surprise' && data.verification_id) {
+        router.push({
+          pathname: '/(imputado)/checkin/sorpresa',
+          params: { verification_id: data.verification_id, expires_at: data.expires_at },
+        })
+      } else {
+        router.push('/(imputado)/home')
+      }
     })
 
     return () => { responseListener.current?.remove() }
   }, [checkinTimes?.join(','), windowMin])
+}
+
+// Push remoto (APNs) para verificaciones sorpresa con la app cerrada.
+// Registra el token nativo del dispositivo en profiles.push_token;
+// trigger-surprise lo usa para enviar directo a APNs.
+// Si la capability de push no está activa o el permiso se niega, falla en
+// silencio y las sorpresas siguen funcionando por polling.
+export function useSurprisePush(userId: string | undefined) {
+  const registeredFor = useRef<string | null>(null)
+
+  useEffect(() => {
+    if (!userId || registeredFor.current === userId) return
+    registeredFor.current = userId
+
+    ;(async () => {
+      try {
+        const { status: existing } = await Notifications.getPermissionsAsync()
+        let finalStatus = existing
+        if (existing !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync()
+          finalStatus = status
+        }
+        if (finalStatus !== 'granted') return
+
+        // Token APNs nativo (no Expo Push — no dependemos de EAS)
+        const { data: token } = await Notifications.getDevicePushTokenAsync()
+        if (token) {
+          await supabase.from('profiles').update({ push_token: String(token) }).eq('id', userId)
+        }
+      } catch (e) {
+        // Sin capability de push (build sin entitlement) — polling sigue cubriendo
+        console.warn('[push] registro APNs falló:', e)
+      }
+    })()
+  }, [userId])
 }
 
 async function scheduleAll(times: string[], windowMin: number) {
