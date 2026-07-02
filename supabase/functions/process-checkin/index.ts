@@ -199,11 +199,11 @@ Deno.serve(async (req) => {
     const overallScore = (gpsPassed ? 50 : 0) + (scenePassed ? 30 : 0) + (facePassed ? 20 : 0)
     const failureReason = failReasons.length > 0 ? failReasons.join('. ') : null
 
-    await supabase.from('checkins').update({
+    const { error: updateError } = await supabase.from('checkins').update({
       status: 'completed',
       completed_at: new Date().toISOString(),
       liveness_method: isFacetec ? 'facetec' : 'accelerometer',
-      face_score: faceScore,
+      face_score: faceScore,           // 0-1 (NUMERIC(4,3))
       face_passed: facePassed,
       face_photo_url: selfieUrl ?? null,
       gps_lat: gpsLat,
@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
       gps_distance_m: gpsDistanceM,
       gps_is_mock: gpsIsMock ?? false,
       scene_checkpoint_id: sceneCheckpointId ?? null,
-      scene_score: sceneScore,
+      scene_score: sceneScore / 100,   // OpenAI da 0-100; la columna es NUMERIC(4,3) 0-1
       scene_passed: scenePassed,
       scene_photo_url: sceneUrl,
       overall_score: overallScore,
@@ -222,6 +222,14 @@ Deno.serve(async (req) => {
       app_version: appVersion ?? null,
       os_version: osVersion ?? null,
     }).eq('id', checkinId)
+
+    if (updateError) {
+      console.error('checkins update failed:', updateError)
+      return new Response(
+        JSON.stringify({ error: 'No se pudo guardar el resultado', detail: updateError.message }),
+        { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      )
+    }
 
     if (!gpsPassed || gpsIsMock) {
       await supabase.from('alerts').insert({

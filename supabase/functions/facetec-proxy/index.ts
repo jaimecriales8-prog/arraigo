@@ -89,11 +89,16 @@ Deno.serve(async (req) => {
 
     // Registrar evidencia server-side (sin blobs — pesan y van encriptados)
     const { responseBlob: _rb, scanResultBlob: _srb, ...meta } = json as any
+    // Formato Testing API v4: la respuesta FINAL trae success + result.livenessProven.
+    // Las respuestas intermedias de la sesión no traen result — quedan en false.
+    const processed =
+      meta.wasProcessed === true ||
+      (meta.success === true && meta.didError !== true && meta.result?.livenessProven === true)
     await supabase.from('facetec_sessions').insert({
       imputado_id: refID,
       checkin_id: checkinId ?? null,
       kind,
-      was_processed: meta.wasProcessed === true,
+      was_processed: processed,
       error: upstream.ok ? (meta.error ? String(meta.error) : null) : `HTTP ${upstream.status}`,
       result: meta,
     })
