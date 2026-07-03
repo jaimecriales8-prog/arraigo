@@ -232,9 +232,11 @@ Reply with ONLY a JSON object:
       face_photo_url: selfieUrl ?? null,
       gps_lat: gpsLat,
       gps_lng: gpsLng,
-      gps_accuracy_m: gpsAccuracyM ?? null,
+      // Redondear y acotar: un salto de GPS puede dar valores enormes que
+      // desbordarían la columna numérica.
+      gps_accuracy_m: gpsAccuracyM != null ? Math.min(Math.round(gpsAccuracyM * 100) / 100, 9999999) : null,
       gps_passed: gpsPassed,
-      gps_distance_m: gpsDistanceM,
+      gps_distance_m: gpsDistanceM != null ? Math.min(Math.round(gpsDistanceM * 100) / 100, 9999999) : null,
       gps_is_mock: gpsIsMock ?? false,
       scene_checkpoint_id: sceneCheckpointId ?? null,
       scene_score: sceneScore / 100,   // OpenAI da 0-100; la columna es NUMERIC(4,3) 0-1

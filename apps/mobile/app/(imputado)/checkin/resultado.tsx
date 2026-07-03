@@ -60,7 +60,13 @@ export default function ResultadoScreen() {
 
       store.reset()
     } catch (e: any) {
-      const msg = e?.message ?? e?.error ?? JSON.stringify(e) ?? 'Error desconocido'
+      // Extraer el detalle real del cuerpo de la Edge Function (FunctionsHttpError)
+      let detail = ''
+      try {
+        const body = await e?.context?.json?.()
+        detail = body?.detail || body?.error || ''
+      } catch { /* sin cuerpo JSON */ }
+      const msg = detail || e?.message || e?.error || 'Error desconocido'
       console.error('[resultado] error:', msg)
       setErrorMsg(msg)
       setStatus('error')
