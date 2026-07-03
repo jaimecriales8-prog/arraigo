@@ -86,8 +86,14 @@ Deno.serve(async (req) => {
     } else if (caso.location) {
       const coords = caso.location.coordinates
       gpsDistanceM = distanceMeters(gpsLat, gpsLng, coords[1], coords[0])
-      gpsPassed = gpsDistanceM <= (caso.geofence_radius_m ?? 200)
-      if (!gpsPassed) failReasons.push(`GPS fuera del domicilio (${Math.round(gpsDistanceM)}m)`)
+      const radius = caso.geofence_radius_m ?? 200
+      // Tolerancia por imprecisión del GPS, acotada a 150m: un fix bueno da poca
+      // holgura, uno malo da 150m máx (para que una lectura basura no apruebe
+      // cualquier ubicación). Solo falla si está fuera INCLUSO con el margen —
+      // la duda por ruido del GPS no genera falsa violación.
+      const tolerance = Math.min(gpsAccuracyM ?? 0, 150)
+      gpsPassed = gpsDistanceM <= radius + tolerance
+      if (!gpsPassed) failReasons.push(`GPS fuera del domicilio (${Math.round(gpsDistanceM)}m, máx ${radius}m)`)
     }
 
     // ESCENA — comparar foto actual con checkpoint de referencia usando OpenAI
