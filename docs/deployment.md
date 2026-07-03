@@ -84,18 +84,46 @@ Aplicar en Dashboard → SQL Editor (IPv6 no disponible en este Mac).
 - Branch principal: `main`
 - Deploy automático: cada push a `main` → Vercel redespliega
 
+## Edge Functions (desplegadas)
+- `process-checkin` — verifica GPS + escena (GPT-4o-mini) + cara (FaceTec vía facetec_sessions). No confía en rutas/ids del cliente.
+- `trigger-surprise` — crea sorpresa + push APNs directo (JWT ES256). Control de acceso por rol + org.
+- `facetec-proxy` — reenvía blobs FaceTec a la Testing API y registra veredicto server-side.
+- `schedule-checkins` — (SQL `create_scheduled_checkins()` vía pg_cron cada 15 min, no Edge Function).
+
+### Secrets configurados
+`OPENAI_API_KEY`, `APNS_KEY_P8`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC=co.arraigo.app`, `APNS_ENV` (sandbox|production), `FACETEC_UPSTREAM` (opcional).
+
+Aplicar migraciones vía Management API (evita IPv6):
+```
+curl -X POST https://api.supabase.com/v1/projects/shusqumfugjkwhuwyyvf/database/query \
+  -H "Authorization: Bearer <PAT arraigo>" -H "Content-Type: application/json" \
+  --data "$(jq -n --arg q "$SQL" '{query:$q}')"
+```
+
+## Distribución móvil — TestFlight
+
+Build nativo (Xcode), NO EAS. Bundle ID `co.arraigo.app`, Team `325CA3VJ5P`.
+
+1. Xcode → destino **Any iOS Device (arm64)** → **Product → Archive**.
+2. Organizer → **Distribute App → TestFlight** → Upload.
+3. App Store Connect → TestFlight → **Internal Testing**: agregar tester (Apple ID) en Users and Access; instala vía app TestFlight.
+
+**Push en TestFlight:** TestFlight usa APNs de PRODUCCIÓN. Para que las sorpresas lleguen, cambiar secret `APNS_ENV=production` (el entitlement pasa a production solo al archivar para distribución). Con `sandbox`, en TestFlight las sorpresas solo se detectan por polling (app abierta).
+
+## Seguridad
+Ver [seguridad.md](seguridad.md). Auditoría 2026-07-02 (commit dd40d77): cerradas 5 vulns (escena self-compare, checkpoint sin validar, trigger-surprise IDOR, auto-completar sorpresa, replay FaceTec). Pendientes bajos: rate limiting, CORS `*`, GPS spoofing.
+
 ## Checklist de go-live
 
-- [x] Variables de entorno en Vercel
-- [x] GitHub conectado a Vercel
-- [x] Edge Function `trigger-surprise` desplegada
-- [x] Bucket `checkin-evidence` creado
-- [x] RLS en todas las tablas
-- [x] App instalada en dispositivo de prueba
-- [x] Usuario admin creado (admin@arraigo.co)
+- [x] Variables de entorno en Vercel + Root Directory `apps/web` (auto-deploy)
+- [x] Edge Functions desplegadas (process-checkin, trigger-surprise, facetec-proxy)
+- [x] Bucket `checkin-evidence` + RLS en todas las tablas
+- [x] Push APNs de sorpresas (sandbox) — probado
+- [x] FaceTec liveness 3D E2E con veredicto server-side (proxy)
+- [x] Auditoría de seguridad — críticos/altos cerrados
+- [ ] Build TestFlight subido + tester interno
+- [ ] `APNS_ENV=production` al pasar a TestFlight/App Store
+- [ ] Licencia FaceTec Server (producción real con presos)
+- [ ] Rate limiting en Edge Functions
+- [ ] Android (puente FaceTec + FCM)
 - [ ] Dominio personalizado (app.arraigo.co)
-- [ ] Edge Function `process-checkin` (Fase 2)
-- [ ] Verificación facial con AWS Rekognition (Fase 2)
-- [ ] CLIP embeddings para escena (Fase 4)
-- [ ] Build TestFlight para distribución
-- [ ] Push notifications en producción (APNS certificates)
