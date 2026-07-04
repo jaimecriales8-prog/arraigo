@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
+import ReasignarTecnico from './ReasignarTecnico'
 
 const STATUS_COLOR: Record<string, string> = {
   completed: 'var(--success)',
@@ -38,13 +39,36 @@ async function getCaso(id: string) {
     .from('cases')
     .select(`
       id, case_number, status, checkin_times, geofence_radius_m, address, city,
+      technician_id, organization_id,
       imputado:profiles!cases_imputado_id_fkey(full_name),
+      tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, created_at),
       surprise_verifications(id, status, created_at, expires_at)
     `)
     .eq('id', id)
     .single()
-  return caso
+
+  if (!caso) return null
+
+  // Rol del usuario actual + técnicos de la org (para reasignar)
+  const anonClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+  )
+  const { data: { user } } = await anonClient.auth.getUser()
+  const { data: me } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+  const puedeReasignar = ['judicial', 'super_admin'].includes(me?.role ?? '')
+
+  const { data: tecnicos } = puedeReasignar
+    ? await supabase.from('profiles').select('id, full_name')
+        .in('role', ['tecnico', 'technician'])
+        .eq('organization_id', (caso as any).organization_id).order('full_name')
+    : { data: [] }
+
+  return { ...caso, _tecnicos: tecnicos ?? [], _puedeReasignar: puedeReasignar }
 }
 
 export default async function CasoDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -77,6 +101,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
             {[
               ['Expediente', caso.case_number],
               ['Imputado', (caso.imputado as any)?.full_name ?? '—'],
+              ['Técnico', (caso as any).tecnico?.full_name ?? 'Sin asignar'],
               ['Dirección', `${(caso as any).address ?? '—'}, ${(caso as any).city ?? ''}`],
               ['Horarios', ((caso as any).checkin_times ?? []).join(' · ') || '—'],
               ['Radio permitido', `${(caso as any).geofence_radius_m ?? '—'}m`],
@@ -87,6 +112,18 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               </div>
             ))}
           </div>
+          {(caso as any)._puedeReasignar && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Reasignar técnico
+              </span>
+              <ReasignarTecnico
+                caseId={caso.id}
+                tecnicos={(caso as any)._tecnicos}
+                current={(caso as any).technician_id ?? null}
+              />
+            </div>
+          )}
         </div>
 
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
