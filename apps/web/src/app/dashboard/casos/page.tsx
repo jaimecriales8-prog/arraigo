@@ -24,24 +24,42 @@ async function getCasos() {
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
 
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: profile } = user
+    ? await supabase.from('profiles').select('role').eq('id', user.id).single()
+    : { data: null }
+
   const { data, error } = await supabase
     .from('cases')
     .select('id, case_number, status, checkin_times, address, city, imputado:profiles!cases_imputado_id_fkey(full_name), checkins(id,status,created_at)')
     .order('created_at', { ascending: false })
 
   if (error) console.error('[casos] error:', error.message)
-  return data ?? []
+  return { casos: data ?? [], role: profile?.role ?? '' }
 }
 
 export default async function CasosPage() {
-  const casos = await getCasos()
+  const { casos, role } = await getCasos()
+  const puedeCrear = ['judicial', 'super_admin'].includes(role)
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Casos</h1>
-      <p style={{ color: 'var(--text-muted)', marginBottom: 32, fontSize: 14 }}>
-        {casos.length} caso{casos.length !== 1 ? 's' : ''} registrado{casos.length !== 1 ? 's' : ''}
-      </p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Casos</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
+            {casos.length} caso{casos.length !== 1 ? 's' : ''} registrado{casos.length !== 1 ? 's' : ''}
+          </p>
+        </div>
+        {puedeCrear && (
+          <Link href="/dashboard/casos/nuevo" style={{
+            padding: '10px 18px', background: 'var(--accent)', color: '#fff',
+            borderRadius: 8, fontSize: 14, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
+          }}>
+            + Nuevo caso
+          </Link>
+        )}
+      </div>
 
       <div style={{
         background: 'var(--bg-card)',

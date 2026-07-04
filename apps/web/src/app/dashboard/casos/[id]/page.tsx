@@ -57,6 +57,8 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
   )
   const passed = checkins.filter((c: any) => c.status === 'completed' || c.status === 'passed').length
   const failed = checkins.filter((c: any) => c.status === 'failed').length
+  const CHECKINS_VISIBLES = 30
+  const checkinsVisibles = checkins.slice(0, CHECKINS_VISIBLES)
 
   return (
     <div>
@@ -126,8 +128,8 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
             {checkins.length === 0 && (
               <tr><td colSpan={2} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin check-ins aún.</td></tr>
             )}
-            {checkins.map((c: any, i: number) => (
-              <tr key={c.id} style={{ borderBottom: i < checkins.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            {checkinsVisibles.map((c: any, i: number) => (
+              <tr key={c.id} style={{ borderBottom: i < checkinsVisibles.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <td style={{ padding: '14px 20px', fontSize: 13 }}>
                   {new Date(c.created_at).toLocaleString('es-CO', {
                     day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
@@ -146,13 +148,20 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
             ))}
           </tbody>
         </table>
+        {checkins.length > CHECKINS_VISIBLES && (
+          <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+            Mostrando los {CHECKINS_VISIBLES} más recientes de {checkins.length} check-ins
+          </div>
+        )}
       </div>
 
       {/* Verificaciones sorpresa */}
       {(() => {
-        const sorpresas = ((caso as any).surprise_verifications ?? []).sort((a: any, b: any) =>
+        const SORPRESAS_VISIBLES = 20
+        const sorpresasAll = ((caso as any).surprise_verifications ?? []).sort((a: any, b: any) =>
           new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
         )
+        const sorpresas = sorpresasAll.slice(0, SORPRESAS_VISIBLES)
         return (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginTop: 20 }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -188,6 +197,11 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                 ))}
               </tbody>
             </table>
+            {sorpresasAll.length > SORPRESAS_VISIBLES && (
+              <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
+                Mostrando las {SORPRESAS_VISIBLES} más recientes de {sorpresasAll.length} verificaciones
+              </div>
+            )}
           </div>
         )
       })()}
