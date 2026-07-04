@@ -68,7 +68,11 @@ export async function POST(req: Request) {
     role,
   })
 
-  if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
+  if (profileError) {
+    // Rollback: borrar el usuario auth para no dejar huérfanos (email quedaría bloqueado)
+    await supabase.auth.admin.deleteUser(newUser.user.id)
+    return NextResponse.json({ error: profileError.message }, { status: 500 })
+  }
 
   // Se devuelven las credenciales para entregarlas (no se envía email de invitación).
   // El imputado se loguea en la app con esto durante el onboarding del técnico.
