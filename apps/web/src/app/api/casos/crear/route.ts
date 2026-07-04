@@ -15,7 +15,7 @@ export async function POST(req: Request) {
 
   const body = await req.json()
   const {
-    imputado_id, case_number, court, crime_description,
+    imputado_id, technician_id, case_number, court, crime_description,
     address, city, department, start_date,
     geofence_radius_m, checkin_times,
   } = body
@@ -67,9 +67,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Ese imputado ya tiene un caso activo' }, { status: 409 })
   }
 
+  // Técnico (opcional): debe existir, ser técnico y de la misma organización.
+  if (technician_id) {
+    const { data: tecnico } = await supabase
+      .from('profiles')
+      .select('id, role, organization_id')
+      .eq('id', technician_id)
+      .single()
+    if (!tecnico || !['tecnico', 'technician'].includes(tecnico.role) || tecnico.organization_id !== currentProfile.organization_id) {
+      return NextResponse.json({ error: 'Técnico inválido o de otra organización' }, { status: 400 })
+    }
+  }
+
   const insert: Record<string, unknown> = {
     organization_id: currentProfile.organization_id,
     imputado_id,
+    technician_id: technician_id || null,
     case_number,
     court: court || null,
     crime_description: crime_description || null,

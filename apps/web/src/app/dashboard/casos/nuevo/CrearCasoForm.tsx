@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Imputado = { id: string; full_name: string }
+type Persona = { id: string; full_name: string }
 
 const inputStyle = {
   width: '100%', padding: '11px 14px', background: 'var(--bg)',
@@ -11,10 +11,11 @@ const inputStyle = {
 }
 const labelStyle = { fontSize: 13, color: 'var(--text-muted)', display: 'block' as const, marginBottom: 6 }
 
-export default function CrearCasoForm({ imputados }: { imputados: Imputado[] }) {
+export default function CrearCasoForm({ imputados, tecnicos }: { imputados: Persona[]; tecnicos: Persona[] }) {
   const router = useRouter()
   const [form, setForm] = useState({
     imputado_id: imputados[0]?.id ?? '',
+    technician_id: tecnicos[0]?.id ?? '',
     case_number: '',
     court: '',
     crime_description: '',
@@ -79,6 +80,19 @@ export default function CrearCasoForm({ imputados }: { imputados: Imputado[] }) 
           <select value={form.imputado_id} onChange={e => set('imputado_id', e.target.value)} required style={{ ...inputStyle, cursor: 'pointer' }}>
             {imputados.map(i => <option key={i.id} value={i.id}>{i.full_name}</option>)}
           </select>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Técnico (hace el onboarding en el domicilio)</label>
+          {tecnicos.length === 0 ? (
+            <p style={{ fontSize: 13, color: 'var(--warning)', lineHeight: 1.5 }}>
+              No hay técnicos en la organización. Crea uno en Usuarios; sin técnico asignado nadie podrá hacer el onboarding.
+            </p>
+          ) : (
+            <select value={form.technician_id} onChange={e => set('technician_id', e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+              {tecnicos.map(t => <option key={t.id} value={t.id}>{t.full_name}</option>)}
+            </select>
+          )}
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>

@@ -45,11 +45,18 @@ async function getData() {
     .filter((i: any) => !(i.cases ?? []).some((c: any) => ['onboarding', 'active'].includes(c.status)))
     .map((i: any) => ({ id: i.id, full_name: i.full_name }))
 
-  return { imputados: disponibles }
+  const { data: tecnicosRows } = await supabase
+    .from('profiles')
+    .select('id, full_name')
+    .in('role', ['tecnico', 'technician'])
+    .eq('organization_id', profile.organization_id)
+    .order('full_name')
+
+  return { imputados: disponibles, tecnicos: tecnicosRows ?? [] }
 }
 
 export default async function NuevoCasoPage() {
-  const { imputados } = await getData()
+  const { imputados, tecnicos } = await getData()
 
   return (
     <div>
@@ -60,7 +67,7 @@ export default async function NuevoCasoPage() {
       <p style={{ color: 'var(--text-muted)', marginBottom: 28, fontSize: 14 }}>
         El caso queda en estado <strong>onboarding</strong> hasta que el técnico complete la visita domiciliaria.
       </p>
-      <CrearCasoForm imputados={imputados} />
+      <CrearCasoForm imputados={imputados} tecnicos={tecnicos} />
     </div>
   )
 }
