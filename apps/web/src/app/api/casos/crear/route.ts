@@ -1,14 +1,16 @@
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
   const cookieStore = await cookies()
 
-  const supabase = createServerClient(
+  // Cliente service-role PURO (sin cookies) para escrituras privilegiadas.
+  const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
+    { auth: { persistSession: false } }
   )
 
   const body = await req.json()
