@@ -21,12 +21,14 @@ export default function CrearUsuarioForm({ currentRole }: { currentRole: string 
   const [role, setRole] = useState(rolesDisponibles[0]?.value ?? '')
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
+  const [creds, setCreds] = useState<{ email: string; password: string; role: string } | null>(null)
   const router = useRouter()
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setResult(null)
+    setCreds(null)
 
     const res = await fetch('/api/usuarios/crear', {
       method: 'POST',
@@ -37,7 +39,8 @@ export default function CrearUsuarioForm({ currentRole }: { currentRole: string 
     setLoading(false)
 
     if (res.ok) {
-      setResult({ ok: true, msg: `Usuario creado. Se envió invitación a ${email}` })
+      setCreds({ email: data.email, password: data.temp_password, role: data.role })
+      setResult(null)
       setFullName('')
       setEmail('')
       setRole(rolesDisponibles[0]?.value ?? '')
@@ -84,6 +87,23 @@ export default function CrearUsuarioForm({ currentRole }: { currentRole: string 
           </p>
         )}
 
+        {creds && (
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--success)', borderRadius: 8, padding: 16 }}>
+            <p style={{ fontSize: 13, color: 'var(--success)', fontWeight: 600, marginBottom: 10 }}>
+              ✓ Usuario creado. Entrega estas credenciales de forma segura:
+            </p>
+            <div style={{ fontSize: 13, fontFamily: 'monospace', lineHeight: 1.9, color: 'var(--text)' }}>
+              <div><span style={{ color: 'var(--text-muted)' }}>Correo: </span>{creds.email}</div>
+              <div><span style={{ color: 'var(--text-muted)' }}>Contraseña: </span>{creds.password}</div>
+            </div>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 10, lineHeight: 1.5 }}>
+              {creds.role === 'imputado'
+                ? 'Entrégalas al técnico: con ellas inicia sesión en la app del imputado durante el onboarding en el domicilio. No se envía correo.'
+                : 'El usuario inicia sesión con estas credenciales. No se envía correo de invitación.'}
+            </p>
+          </div>
+        )}
+
         <button type="submit" disabled={loading} style={{
           padding: '12px',
           background: loading ? 'var(--border)' : 'var(--accent)',
@@ -95,7 +115,7 @@ export default function CrearUsuarioForm({ currentRole }: { currentRole: string 
           cursor: loading ? 'not-allowed' : 'pointer',
           marginTop: 4,
         }}>
-          {loading ? 'Creando...' : 'Crear y enviar invitación'}
+          {loading ? 'Creando...' : 'Crear usuario'}
         </button>
       </form>
     </div>

@@ -67,5 +67,7 @@ export async function POST(req: Request) {
 
   if (profileError) return NextResponse.json({ error: profileError.message }, { status: 500 })
 
-  return NextResponse.json({ success: true })
+  // Se devuelven las credenciales para entregarlas (no se envía email de invitación).
+  // El imputado se loguea en la app con esto durante el onboarding del técnico.
+  return NextResponse.json({ success: true, email, temp_password: tempPassword, role })
 }
