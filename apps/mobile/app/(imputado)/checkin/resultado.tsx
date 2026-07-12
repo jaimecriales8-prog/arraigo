@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native'
 import { useRouter, useLocalSearchParams } from 'expo-router'
 import * as Application from 'expo-application'
-import { supabase } from '../../../src/lib/supabase'
+import { supabase, ensureFreshSession } from '../../../src/lib/supabase'
 import { useCheckinStore } from '../../../src/hooks/useCheckinStore'
 import { uploadPhoto } from '../../../src/lib/storage'
 
@@ -22,6 +22,9 @@ export default function ResultadoScreen() {
   async function submit() {
     setStatus('submitting')
     try {
+      // Asegurar token válido: la app pudo estar en segundo plano hasta la hora del check-in
+      await ensureFreshSession()
+
       const isFacetec = store.livenessMethod === 'facetec'
 
       // 1. Subir fotos a Storage. En modo FaceTec no hay selfie que subir (el FaceMap lo procesa FaceTec).

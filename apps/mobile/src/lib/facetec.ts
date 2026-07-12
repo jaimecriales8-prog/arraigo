@@ -8,7 +8,7 @@
 // reporta es solo informativo.
 // ============================================================
 import { NativeModules } from 'react-native'
-import { supabase } from './supabase'
+import { supabase, ensureFreshSession } from './supabase'
 
 const { FacetecModule } = NativeModules
 
@@ -34,6 +34,7 @@ export interface FacetecAuthResult {
 let initialized = false
 
 async function authToken(): Promise<string> {
+  await ensureFreshSession()
   const { data: { session } } = await supabase.auth.getSession()
   if (!session?.access_token) throw new Error('Sesión expirada — vuelve a iniciar sesión.')
   return session.access_token
