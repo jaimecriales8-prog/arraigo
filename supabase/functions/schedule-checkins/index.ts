@@ -23,7 +23,7 @@ Deno.serve(async (_req) => {
 
   for (const caso of cases ?? []) {
     const tz = caso.timezone ?? 'America/Bogota'
-    const windowMin = caso.checkin_window_min ?? 30
+    const windowMin = caso.checkin_window_min ?? 15
 
     for (const timeStr of (caso.checkin_times ?? [])) {
       const [hh, mm] = timeStr.split(':').map(Number)

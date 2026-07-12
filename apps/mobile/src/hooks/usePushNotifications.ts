@@ -16,7 +16,7 @@ Notifications.setNotificationHandler({
 // Notificaciones LOCALES programadas según los horarios del caso.
 // Repiten a diario en el dispositivo — funcionan con la app cerrada y sin servidor.
 // (Push remoto APNS para sorpresas queda para Fase 2; hoy las sorpresas usan polling.)
-export function useCheckinNotifications(checkinTimes: string[] | undefined, windowMin: number = 30) {
+export function useCheckinNotifications(checkinTimes: string[] | undefined, windowMin: number = 15) {
   const responseListener = useRef<Notifications.EventSubscription | undefined>(undefined)
   const scheduledKey = useRef<string>('')
 
