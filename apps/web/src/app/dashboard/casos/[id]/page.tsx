@@ -92,7 +92,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         </Link>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
+      <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
           <h2 style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
             Información del caso
@@ -106,9 +106,9 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               ['Horarios', ((caso as any).checkin_times ?? []).join(' · ') || '—'],
               ['Radio permitido', `${(caso as any).geofence_radius_m ?? '—'}m`],
             ].map(([label, value]) => (
-              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14 }}>
-                <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-                <span style={{ fontWeight: 500 }}>{value}</span>
+              <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 14 }}>
+                <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{label}</span>
+                <span style={{ fontWeight: 500, textAlign: 'right' }}>{value}</span>
               </div>
             ))}
           </div>

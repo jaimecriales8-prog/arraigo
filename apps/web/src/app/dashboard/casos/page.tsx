@@ -61,11 +61,10 @@ export default async function CasosPage() {
         )}
       </div>
 
-      <div style={{
+      <div className="table-scroll" style={{
         background: 'var(--bg-card)',
         border: '1px solid var(--border)',
         borderRadius: 12,
-        overflow: 'hidden',
       }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>

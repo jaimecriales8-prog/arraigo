@@ -12,15 +12,16 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '📊' },
+  { href: '/dashboard', label: 'Inicio', icon: '📊' },
   { href: '/dashboard/casos', label: 'Casos', icon: '📋' },
-  { href: '/dashboard/usuarios', label: 'Usuarios', icon: '👥' },
+  { href: '/dashboard/usuarios', label: 'Usuarios', icon: '👥', roles: ['judicial', 'super_admin', 'admin'] },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
   const router = useRouter()
   const [roleLabel, setRoleLabel] = useState('Panel')
+  const [role, setRole] = useState<string>('')
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -30,9 +31,12 @@ export default function Sidebar() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
       const { data } = await supabase.from('profiles').select('role').eq('id', user.id).single()
-      if (data?.role) setRoleLabel(ROLE_LABEL[data.role] ?? data.role)
+      if (data?.role) { setRoleLabel(ROLE_LABEL[data.role] ?? data.role); setRole(data.role) }
     })
   }, [])
+
+  // Filtrar items según el rol (el operador no gestiona usuarios)
+  const items = navItems.filter(i => !i.roles || i.roles.includes(role))
 
   async function logout() {
     await supabase.auth.signOut()
@@ -40,34 +44,25 @@ export default function Sidebar() {
   }
 
   return (
-    <aside style={{
-      width: 220,
-      minHeight: '100vh',
-      background: 'var(--bg-card)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex',
-      flexDirection: 'column',
-      padding: '24px 0',
-      flexShrink: 0,
-    }}>
-      <div style={{ padding: '0 20px 24px', borderBottom: '1px solid var(--border)' }}>
+    <aside className="dash-sidebar">
+      <div className="dash-sidebar-header" style={{ padding: '0 20px 24px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
             width: 36, height: 36,
             background: 'var(--accent)',
             borderRadius: 9,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18,
+            fontSize: 18, flexShrink: 0,
           }}>🏠</div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Arraigo</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{roleLabel}</div>
+            <div className="dash-brand-sub" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{roleLabel}</div>
           </div>
         </div>
       </div>
 
-      <nav style={{ flex: 1, padding: '16px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {navItems.map(item => {
+      <nav className="dash-nav">
+        {items.map(item => {
           const active = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))
           return (
             <Link key={item.href} href={item.href} style={{
@@ -88,8 +83,8 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div style={{ padding: '16px 12px', borderTop: '1px solid var(--border)' }}>
-        <button onClick={logout} style={{
+      <div className="dash-footer" style={{ padding: '16px 12px', borderTop: '1px solid var(--border)' }}>
+        <button onClick={logout} className="dash-logout" style={{
           width: '100%', padding: '10px 12px',
           background: 'transparent',
           border: '1px solid var(--border)',
@@ -97,9 +92,9 @@ export default function Sidebar() {
           color: 'var(--text-muted)',
           fontSize: 14,
           cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 10,
+          display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'center',
         }}>
-          <span>🚪</span> Cerrar sesión
+          <span>🚪</span> <span className="dash-logout-text">Cerrar sesión</span>
         </button>
       </div>
     </aside>

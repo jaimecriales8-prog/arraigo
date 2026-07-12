@@ -22,3 +22,41 @@ body {
   font-family: system-ui, -apple-system, sans-serif;
   min-height: 100vh;
 }
+
+/* ---- Shell responsivo del dashboard ---- */
+.app-shell { display: flex; min-height: 100vh; }
+.app-main { flex: 1; min-width: 0; padding: 32px; overflow-y: auto; }
+
+.dash-sidebar {
+  width: 220px; flex-shrink: 0; min-height: 100vh;
+  background: var(--bg-card); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 24px 0;
+}
+.dash-nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 4px; }
+
+/* Contenedor para tablas anchas: scroll horizontal en vez de romper el layout */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.table-scroll > table { min-width: 640px; }
+
+@media (max-width: 768px) {
+  .app-shell { flex-direction: column; }
+  .app-main { padding: 16px; }
+
+  /* La barra lateral pasa a ser una barra superior horizontal */
+  .dash-sidebar {
+    width: 100%; min-height: auto; flex-direction: row; align-items: center;
+    padding: 8px 12px; gap: 8px;
+    border-right: none; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 20;
+  }
+  .dash-sidebar-header { padding: 0 4px 0 0 !important; border-bottom: none !important; }
+  .dash-brand-sub { display: none; }
+  .dash-nav { flex-direction: row; padding: 0; gap: 2px; overflow-x: auto; }
+  .dash-nav a { padding: 8px 10px !important; white-space: nowrap; }
+  .dash-logout { padding: 8px !important; }
+  .dash-logout-text { display: none; }
+  .dash-footer { padding: 0 !important; border-top: none !important; }
+
+  /* Rejilla info/estadísticas del detalle: una columna en móvil */
+  .detail-grid { grid-template-columns: 1fr !important; }
+}
