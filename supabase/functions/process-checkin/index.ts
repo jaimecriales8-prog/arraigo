@@ -26,16 +26,25 @@ Deno.serve(async (req) => {
     })
   }
 
+  const J = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
+
+  // Captura persistente de fallos (los logs del edge runtime expiran en el plan free)
+  let dbgCheckinId: string | null = null
+  let dbgUserId: string | null = null
+  const fail = (stage: string, message: string, status: number) => {
+    supabase.from('checkin_errors').insert({
+      checkin_id: dbgCheckinId, imputado_id: dbgUserId, stage, message, http_status: status,
+    }).then(() => {}, () => {})
+    return new Response(JSON.stringify({ error: message, stage }), { status, headers: J })
+  }
+
   try {
     const authHeader = req.headers.get('Authorization')
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
-    }
+    if (!authHeader) return fail('auth', 'Falta autorización', 401)
 
     const { data: { user }, error: authError } = await supabase.auth.getUser(authHeader.replace('Bearer ', ''))
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Unauthorized', detail: authError?.message }), { status: 401, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
-    }
+    if (authError || !user) return fail('auth', `Sesión inválida: ${authError?.message ?? 'sin usuario'}`, 401)
+    dbgUserId = user.id
 
     const body = await req.json()
     const {
@@ -44,11 +53,13 @@ Deno.serve(async (req) => {
       livenessMethod, facetecLivenessPassed, facetecMatchScore, facetecSessionId,
       surpriseVerificationId,
     } = body
+    dbgCheckinId = checkinId ?? null
 
     const isFacetec = livenessMethod === 'facetec'
     // En modo FaceTec no se sube selfie a Storage (el FaceMap lo procesa FaceTec)
     if (!checkinId || !sceneUrl || gpsLat == null || gpsLng == null || (!isFacetec && !selfieUrl)) {
-      return new Response(JSON.stringify({ error: 'Missing required fields' }), { status: 400, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
+      const miss = [!checkinId && 'checkinId', !sceneUrl && 'sceneUrl', gpsLat == null && 'gpsLat', gpsLng == null && 'gpsLng', (!isFacetec && !selfieUrl) && 'selfieUrl'].filter(Boolean).join(', ')
+      return fail('validation', `Faltan campos: ${miss}`, 400)
     }
 
     const { data: checkin } = await supabase
@@ -57,12 +68,18 @@ Deno.serve(async (req) => {
       .eq('id', checkinId)
       .single()
 
-    if (!checkin) {
-      return new Response(JSON.stringify({ error: 'Checkin not found' }), { status: 404, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
-    }
+    if (!checkin) return fail('lookup', 'Check-in no encontrado', 404)
 
+    // Idempotente: si ya se completó, responder OK (evita error rojo en reintentos)
     if (checkin.status === 'completed') {
-      return new Response(JSON.stringify({ error: 'Already completed' }), { status: 409, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
+      const { data: done } = await supabase
+        .from('checkins').select('overall_score, overall_passed, failure_reason').eq('id', checkinId).single()
+      return new Response(JSON.stringify({
+        overall_passed: done?.overall_passed ?? true,
+        overall_score: done?.overall_score ?? 100,
+        failure_reason: done?.failure_reason ?? null,
+        already: true,
+      }), { headers: J })
     }
 
     const { data: caso } = await supabase
@@ -71,9 +88,8 @@ Deno.serve(async (req) => {
       .eq('id', checkin.case_id)
       .single()
 
-    if (!caso || caso.imputado_id !== user.id) {
-      return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } })
-    }
+    if (!caso) return fail('lookup', 'Caso no encontrado', 404)
+    if (caso.imputado_id !== user.id) return fail('authz', 'El check-in no pertenece a este imputado', 403)
 
     // GPS
     let gpsDistanceM: number | null = null
@@ -256,11 +272,7 @@ Reply with ONLY a JSON object:
     }).eq('id', checkinId)
 
     if (updateError) {
-      console.error('checkins update failed:', updateError)
-      return new Response(
-        JSON.stringify({ error: 'No se pudo guardar el resultado', detail: updateError.message }),
-        { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-      )
+      return fail('update', `No se pudo guardar: ${updateError.message}`, 500)
     }
 
     // Marcar la sorpresa como completada (SERVER-SIDE — el cliente ya no puede).
@@ -287,12 +299,9 @@ Reply with ONLY a JSON object:
 
     return new Response(
       JSON.stringify({ overall_passed: overallPassed, overall_score: overallScore, failure_reason: failureReason }),
-      { headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
+      { headers: J }
     )
   } catch (err: any) {
-    return new Response(
-      JSON.stringify({ error: 'Internal error', detail: err?.message ?? String(err) }),
-      { status: 500, headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' } }
-    )
+    return fail('exception', err?.message ?? String(err), 500)
   }
 })
