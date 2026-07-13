@@ -1,0 +1,309 @@
+<title>Arraigo · Costeo del servicio</title>
+<style>
+  :root{--bg:#eef2f7;--panel:#fff;--panel-2:#f6f8fb;--ink:#132030;--ink-soft:#4a5c72;--ink-faint:#7789a0;--line:#dce3ec;--accent:#2563eb;--accent-soft:#dbe6ff;
+    --tech:#0d9488;--tech-soft:#d3f1ed;--nom:#7c3aed;--nom-soft:#ece2fd;--otros:#c2410c;--otros-soft:#fbe4d5;--over:#64748b;--over-soft:#e6ebf2;--ok:#16a34a;
+    --shadow:0 1px 2px rgba(20,40,70,.06),0 8px 24px rgba(20,40,70,.06);--radius:14px;}
+  @media (prefers-color-scheme:dark){:root{--bg:#0a1424;--panel:#102035;--panel-2:#0d1b2e;--ink:#e5edf7;--ink-soft:#9fb3cc;--ink-faint:#6a7f9b;--line:#1d3350;--accent:#4c8dff;--accent-soft:#14294a;
+    --tech:#2dd4bf;--tech-soft:#0e2b28;--nom:#a78bfa;--nom-soft:#241a3d;--otros:#fb923c;--otros-soft:#33210f;--over:#94a3b8;--over-soft:#1a2740;--ok:#34d399;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);}}
+  :root[data-theme="light"]{--bg:#eef2f7;--panel:#fff;--panel-2:#f6f8fb;--ink:#132030;--ink-soft:#4a5c72;--ink-faint:#7789a0;--line:#dce3ec;--accent:#2563eb;--accent-soft:#dbe6ff;--tech:#0d9488;--tech-soft:#d3f1ed;--nom:#7c3aed;--nom-soft:#ece2fd;--otros:#c2410c;--otros-soft:#fbe4d5;--over:#64748b;--over-soft:#e6ebf2;--ok:#16a34a;--shadow:0 1px 2px rgba(20,40,70,.06),0 8px 24px rgba(20,40,70,.06);}
+  :root[data-theme="dark"]{--bg:#0a1424;--panel:#102035;--panel-2:#0d1b2e;--ink:#e5edf7;--ink-soft:#9fb3cc;--ink-faint:#6a7f9b;--line:#1d3350;--accent:#4c8dff;--accent-soft:#14294a;--tech:#2dd4bf;--tech-soft:#0e2b28;--nom:#a78bfa;--nom-soft:#241a3d;--otros:#fb923c;--otros-soft:#33210f;--over:#94a3b8;--over-soft:#1a2740;--ok:#34d399;--shadow:0 1px 2px rgba(0,0,0,.3),0 10px 30px rgba(0,0,0,.35);}
+
+  *{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--ink);font-family:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.5;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1120px;margin:0 auto;padding:40px 20px 64px;}
+  header{margin-bottom:26px;}
+  .eyebrow{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);font-weight:700;margin:0 0 8px;}
+  h1{font-size:clamp(24px,4vw,34px);margin:0 0 6px;letter-spacing:-.02em;text-wrap:balance;}
+  .sub{color:var(--ink-soft);margin:0;max-width:64ch;font-size:15px;}
+  .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:20px;align-items:start;}
+  @media (max-width:820px){.grid{grid-template-columns:1fr;}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px;}
+  .card+.card{margin-top:16px;}
+  .card h2{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:0 0 4px;font-weight:700;}
+  .card .h2sub{font-size:12px;color:var(--ink-faint);margin:0 0 16px;}
+  .results{position:sticky;top:16px;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  @media (max-width:440px){.row2{grid-template-columns:1fr;}}
+  .field{margin-bottom:14px;} .field:last-child{margin-bottom:0;}
+  .field label{display:block;font-size:13px;font-weight:600;margin-bottom:6px;}
+  .field .hint{color:var(--ink-faint);font-weight:400;font-size:12px;}
+  .inputrow{display:flex;align-items:center;gap:8px;}
+  .inputrow .pfx{color:var(--ink-faint);font-size:12px;min-width:30px;text-align:right;}
+  input[type="number"]{width:100%;padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-size:14.5px;font-variant-numeric:tabular-nums;-moz-appearance:textfield;}
+  input[type="number"]:focus-visible{outline:2px solid var(--accent);outline-offset:1px;border-color:var(--accent);}
+  input[type="range"]{width:100%;accent-color:var(--accent);}
+  .rangeval{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent);}
+  .fteTag{font-size:11px;font-weight:700;color:var(--nom);background:var(--nom-soft);padding:2px 7px;border-radius:20px;margin-left:6px;font-variant-numeric:tabular-nums;}
+
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;}
+  .seg button{border:0;background:transparent;color:var(--ink-soft);padding:6px 13px;font-size:13px;font-weight:600;cursor:pointer;}
+  .seg button[aria-pressed="true"]{background:var(--accent);color:#fff;}
+
+  .hero{background:var(--accent-soft);border-radius:12px;padding:16px 18px;margin-bottom:14px;}
+  .hero .k{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:4px;}
+  .hero .v{font-size:clamp(26px,6vw,38px);font-weight:800;letter-spacing:-.03em;color:var(--accent);font-variant-numeric:tabular-nums;line-height:1.05;}
+  .hero .v small{font-size:14px;font-weight:600;color:var(--ink-soft);}
+  .duo{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;}
+  .stat{background:var(--panel-2);border:1px solid var(--line);border-radius:11px;padding:12px 14px;}
+  .stat .k{font-size:11.5px;color:var(--ink-faint);font-weight:600;margin-bottom:4px;}
+  .stat .v{font-size:19px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;}
+
+  .bar{display:flex;height:14px;border-radius:7px;overflow:hidden;margin:4px 0 14px;background:var(--line);}
+  .bar span{display:block;height:100%;}
+  .legend{display:flex;flex-direction:column;gap:9px;}
+  .legrow{display:flex;align-items:center;gap:10px;font-size:13px;}
+  .dot{width:10px;height:10px;border-radius:3px;flex:none;}
+  .legrow .name{flex:1;} .legrow .amt{font-variant-numeric:tabular-nums;font-weight:700;} .legrow .pct{color:var(--ink-faint);font-variant-numeric:tabular-nums;min-width:42px;text-align:right;}
+
+  .price{margin-top:16px;background:var(--panel-2);border:1px dashed var(--ok);border-radius:12px;padding:14px 16px;}
+  .price .k{font-size:12px;color:var(--ink-soft);font-weight:600;}
+  .price .v{font-size:22px;font-weight:800;color:var(--ok);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .price .fac{font-size:12.5px;color:var(--ink-faint);margin-top:4px;}
+  .note{margin-top:14px;font-size:12px;color:var(--ink-faint);line-height:1.55;}
+  footer{margin-top:24px;font-size:12px;color:var(--ink-faint);text-align:center;}
+  .curbar{display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px;align-items:center;}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Arraigo · Modelo de negocio</p>
+    <h1>Costeo total del servicio</h1>
+    <p class="sub">Junta tecnología, nómina y otros costos para obtener el costo por preso/mes y el precio a cobrar. Pon el salario cargado de cada rol; los FTE se calculan solos según la escala.</p>
+  </header>
+
+  <div class="grid">
+    <!-- INPUTS -->
+    <div>
+      <section class="card">
+        <h2>Escala y operación</h2>
+        <p class="h2sub">Definen el volumen y cuántas personas se necesitan.</p>
+        <div class="row2">
+          <div class="field"><label for="presos">Presos monitoreados</label><div class="inputrow"><span class="pfx">#</span><input type="number" id="presos" min="1" step="50" value="1000"></div></div>
+          <div class="field"><label for="dur">Duración media <span class="hint">meses</span></label><div class="inputrow"><span class="pfx">m</span><input type="number" id="dur" min="1" step="1" value="12"></div></div>
+        </div>
+        <div class="field"><label for="cumpl">Cumplimiento: <span class="rangeval" id="cumplv">92%</span></label><input type="range" id="cumpl" min="60" max="99" step="1" value="92"></div>
+        <div class="row2">
+          <div class="field"><label for="cob">Cobertura <span class="hint">h/día</span></label><div class="inputrow"><span class="pfx">h</span><input type="number" id="cob" min="1" max="24" step="1" value="16"></div></div>
+          <div class="field"><label for="cap">Onboardings/técnico <span class="hint">al mes</span></label><div class="inputrow"><span class="pfx">#</span><input type="number" id="cap" min="1" step="5" value="60"></div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Tecnología <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— verificación en USD + operación en COP</span></h2>
+        <p class="h2sub">Los precios en dólares se convierten con la TRM.</p>
+        <div class="field"><label for="pctf">Verificaciones con FaceTec: <span class="rangeval" id="pctfv">100%</span></label><input type="range" id="pctf" min="0" max="100" step="5" value="100"></div>
+        <div class="row2">
+          <div class="field"><label for="verif">Verif/día por preso</label><div class="inputrow"><span class="pfx">#</span><input type="number" id="verif" min="0" step="0.5" value="3"></div></div>
+          <div class="field"><label for="fprice">FaceTec/liveness</label><div class="inputrow"><span class="pfx">US$</span><input type="number" id="fprice" min="0" step="0.01" value="0.10"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="oprice">OpenAI/escena</label><div class="inputrow"><span class="pfx">US$</span><input type="number" id="oprice" min="0" step="0.0005" value="0.001"></div></div>
+          <div class="field"><label for="infra">Infra fija/mes</label><div class="inputrow"><span class="pfx">US$</span><input type="number" id="infra" min="0" step="5" value="25"></div></div>
+        </div>
+        <div class="field"><label for="cSoft">Operación software y BD <span class="hint">COP/preso/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cSoft" min="0" step="1000" value="10000"></div></div>
+      </section>
+
+      <section class="card">
+        <h2>Nómina <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— salario BASE mensual, en COP</span></h2>
+        <p class="h2sub">Escribe el salario base; el factor prestacional agrega los aportes de ley. Los FTE se calculan solos.</p>
+        <div class="row2">
+          <div class="field"><label>Técnico <span class="fteTag" id="tagTec">0</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="sTec" min="0" step="100000" value="2300000"></div></div>
+          <div class="field"><label>Operador <span class="fteTag" id="tagOpe">0</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="sOpe" min="0" step="100000" value="2000000"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label>Soporte <span class="fteTag" id="tagSop">0</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="sSop" min="0" step="100000" value="2150000"></div></div>
+          <div class="field"><label>Coordinación <span class="fteTag" id="tagCoord">0</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="sCoord" min="0" step="100000" value="4000000"></div></div>
+        </div>
+        <div class="field"><label for="factor">Factor prestacional <span class="hint">— % sobre el base: salud, pensión, ARL, parafiscales, prima, cesantías, vacaciones</span></label><div class="inputrow"><span class="pfx">+%</span><input type="number" id="factor" min="0" step="1" value="50"></div></div>
+      </section>
+
+      <section class="card">
+        <h2>Inversión inicial <span class="hint" style="text-transform:none;letter-spacing:0;font-weight:400">— CAPEX, en COP</span></h2>
+        <p class="h2sub">Se amortiza en el período elegido y se reparte en el costo mensual. Edita cada ítem.</p>
+        <div class="row2">
+          <div class="field"><label for="cDev">Desarrollo / puesta en marcha</label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cDev" min="0" step="1000000" value="200000000"></div></div>
+          <div class="field"><label for="cFacetec">Setup FaceTec Server</label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cFacetec" min="0" step="1000000" value="20000000"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="cAdec">Adecuación de sede <span class="hint">obra, eléctrico, redes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cAdec" min="0" step="1000000" value="45000000"></div></div>
+          <div class="field"><label for="cMonitor">Centro de monitoreo <span class="hint">pantallas, PCs, servidores</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cMonitor" min="0" step="1000000" value="55000000"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="cMob">Mobiliario de sede</label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cMob" min="0" step="1000000" value="25000000"></div></div>
+          <div class="field"><label for="cField">Equipos de campo <span class="hint">kit técnicos</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cField" min="0" step="1000000" value="25000000"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="cLegal">Legal y cumplimiento</label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cLegal" min="0" step="1000000" value="10000000"></div></div>
+          <div class="field"><label for="cCap">Capacitación</label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cCap" min="0" step="1000000" value="5000000"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="cOtro">Otro <span class="hint">(brigada de arranque, etc.)</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cOtro" min="0" step="1000000" value="0"></div></div>
+          <div class="field"><label for="amortM">Amortizar en <span class="hint">meses</span></label><div class="inputrow"><span class="pfx">m</span><input type="number" id="amortM" min="1" step="6" value="36"></div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Otros costos y margen</h2>
+        <div class="row2">
+          <div class="field"><label for="cRent">Sede / arriendo <span class="hint">COP/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cRent" min="0" step="100000" value="14000000"></div></div>
+          <div class="field"><label for="cUtil">Servicios públicos + internet <span class="hint">COP/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cUtil" min="0" step="100000" value="2000000"></div></div>
+        </div>
+        <div class="row2">
+          <div class="field"><label for="cTrans">Vehículos y transporte <span class="hint">COP/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cTrans" min="0" step="100000" value="20000000"></div></div>
+          <div class="field"><label for="device">Datos/SIM/equipo <span class="hint">COP/preso/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="device" min="0" step="1000" value="0"></div></div>
+        </div>
+        <div class="field"><label for="over">Overhead admin <span class="hint">% del costo</span></label><div class="inputrow"><span class="pfx">%</span><input type="number" id="over" min="0" step="1" value="15"></div></div>
+        <div class="field"><label for="margin">Margen objetivo <span class="hint">%</span></label><div class="inputrow"><span class="pfx">%</span><input type="number" id="margin" min="0" step="1" value="30"></div></div>
+      </section>
+    </div>
+
+    <!-- RESULTS -->
+    <section class="card results">
+      <div class="curbar">
+        <label for="trm" class="hint" style="font-size:12px">TRM</label>
+        <input type="number" id="trm" min="1" step="50" value="4000" aria-label="TRM: pesos por dólar"
+          style="width:82px;padding:6px 9px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font-size:13px;font-variant-numeric:tabular-nums;-moz-appearance:textfield;">
+        <span class="hint" style="font-size:12px;margin-left:6px">Ver en</span>
+        <div class="seg" role="group" aria-label="Moneda">
+          <button id="mCOP" aria-pressed="true">COP</button>
+          <button id="mUSD" aria-pressed="false">USD</button>
+        </div>
+      </div>
+      <div class="hero"><div class="k">Costo por preso / mes</div><div class="v" id="rPerPreso">—</div></div>
+      <div class="duo" style="grid-template-columns:repeat(auto-fit,minmax(115px,1fr))">
+        <div class="stat"><div class="k">Costo total / mes</div><div class="v" id="rTotal">—</div></div>
+        <div class="stat"><div class="k">Inversión inicial</div><div class="v" id="rCapex">—</div></div>
+        <div class="stat"><div class="k">Personal total</div><div class="v" id="rFTE">—</div></div>
+      </div>
+
+      <div class="k" style="font-size:12px;color:var(--ink-faint);font-weight:600;margin-bottom:2px">Composición del costo mensual</div>
+      <div class="bar"><span id="bT" style="background:var(--tech)"></span><span id="bN" style="background:var(--nom)"></span><span id="bA" style="background:#0891b2"></span><span id="bS" style="background:#6366f1"></span><span id="bX" style="background:#be123c"></span><span id="bO" style="background:var(--otros)"></span><span id="bV" style="background:var(--over)"></span></div>
+      <div class="legend">
+        <div class="legrow"><span class="dot" style="background:var(--tech)"></span><span class="name">Tecnología</span><span class="amt" id="aT">—</span><span class="pct" id="pT"></span></div>
+        <div class="legrow"><span class="dot" style="background:var(--nom)"></span><span class="name">Nómina</span><span class="amt" id="aN">—</span><span class="pct" id="pN"></span></div>
+        <div class="legrow"><span class="dot" style="background:#0891b2"></span><span class="name">Amortización inversión</span><span class="amt" id="aA">—</span><span class="pct" id="pA"></span></div>
+        <div class="legrow"><span class="dot" style="background:#6366f1"></span><span class="name">Sede y servicios</span><span class="amt" id="aS">—</span><span class="pct" id="pS"></span></div>
+        <div class="legrow"><span class="dot" style="background:#be123c"></span><span class="name">Vehículos y transporte</span><span class="amt" id="aX">—</span><span class="pct" id="pX"></span></div>
+        <div class="legrow"><span class="dot" style="background:var(--otros)"></span><span class="name">Datos/SIM/equipo</span><span class="amt" id="aO">—</span><span class="pct" id="pO"></span></div>
+        <div class="legrow"><span class="dot" style="background:var(--over)"></span><span class="name">Overhead admin</span><span class="amt" id="aV">—</span><span class="pct" id="pV"></span></div>
+      </div>
+
+      <div class="price">
+        <div class="k">Precio sugerido por preso / mes <span id="marginLbl" class="hint"></span></div>
+        <div class="v" id="rPrice">—</div>
+        <div class="fac" id="rBilling"></div>
+      </div>
+      <p class="note" id="detail"></p>
+    </section>
+  </div>
+  <footer>Modelo orientativo · confirma el precio de FaceTec con quote y los salarios cargados con tu área contable · TRM y tarifas jul-2026</footer>
+</div>
+
+<script>
+  const $=id=>document.getElementById(id);
+  const numIds=['presos','dur','cumpl','cob','cap','pctf','verif','fprice','oprice','infra','cSoft','sTec','sOpe','sSop','sCoord','factor','device','over','margin','trm','cDev','cFacetec','cAdec','cMonitor','cField','cMob','cLegal','cCap','cOtro','amortM','cRent','cUtil','cTrans'];
+  // Campos de dinero (enteros grandes): se muestran con separador de miles.
+  const MONEY=new Set(['presos','trm','cSoft','device','cTrans','cRent','cUtil','sTec','sOpe','sSop','sCoord','cDev','cFacetec','cAdec','cMonitor','cField','cMob','cLegal','cCap','cOtro']);
+  let cur='COP';
+  const WORKDAYS=22,SHIFT=8,PROD=0.8,PROD_H_DAY=SHIFT*PROD,PROD_H_MONTH=WORKDAYS*PROD_H_DAY,WEEKEND=7/5;
+  const ceil=Math.ceil;
+
+  // Lectura numérica: en campos de dinero quita los puntos de miles.
+  const gv=id=>{const raw=$(id).value||''; return MONEY.has(id) ? (parseInt(raw.replace(/\D/g,''),10)||0) : (parseFloat(raw)||0);};
+
+  // Formatea un campo de dinero con separador de miles conservando el cursor.
+  function fmtMoney(el){
+    const sel=el.selectionStart||0;
+    const before=el.value.slice(0,sel).replace(/\D/g,'').length;
+    const digits=el.value.replace(/\D/g,'');
+    const formatted=digits ? parseInt(digits,10).toLocaleString('es-CO') : '';
+    el.value=formatted;
+    let pos=0,seen=0;
+    while(pos<formatted.length && seen<before){ if(/\d/.test(formatted[pos])) seen++; pos++; }
+    try{ el.setSelectionRange(pos,pos); }catch(e){}
+  }
+
+  function money(cop){ // recibe COP, muestra en moneda elegida
+    if(cur==='USD'){const u=cop/(gv('trm')||1); return 'US$'+u.toLocaleString('en-US',{maximumFractionDigits:u<100?2:0});}
+    return '$'+Math.round(cop).toLocaleString('es-CO');
+  }
+
+  function calc(){
+    const presos=Math.max(0,gv('presos'));
+    const dur=Math.max(1,gv('dur'));
+    const cumpl=(gv('cumpl'))/100;
+    const cob=Math.max(1,gv('cob'));
+    const cap=Math.max(1,gv('cap'));
+    const pctf=(gv('pctf'))/100;
+    const verif=Math.max(0,gv('verif'));
+    const trm=Math.max(1,gv('trm'));
+    $('cumplv').textContent=Math.round(cumpl*100)+'%';
+    $('pctfv').textContent=Math.round(pctf*100)+'%';
+
+    // ---- FTE ----
+    const turnover=presos/dur, onboardMes=turnover*1.1;
+    const tec=presos>0?Math.max(1,ceil(onboardMes/cap)):0;
+    const checkinsDia=presos*verif, alertasDia=checkinsDia*(1-cumpl);
+    const triageFTE=(alertasDia*2.5/60)/PROD_H_DAY, coberturaFTE=(cob/SHIFT)*WEEKEND;
+    const ope=presos>0?Math.max(1,ceil(Math.max(triageFTE,coberturaFTE))):0;
+    const sop=presos>0?Math.max(1,ceil(presos*0.03*15/60/PROD_H_MONTH))+Math.max(1,Math.round(presos/2000)):0;
+    const coord=presos>0?Math.max(1,Math.round(presos/1500)):0;
+    const fte=tec+ope+sop+coord;
+    $('tagTec').textContent=tec; $('tagOpe').textContent=ope; $('tagSop').textContent=sop; $('tagCoord').textContent=coord;
+
+    // ---- Costos (todo a COP) ----
+    const verifMes=presos*verif*30;
+    const techUSD=verifMes*pctf*gv('fprice') + verifMes*gv('oprice') + gv('infra');
+    const techCOP=techUSD*trm + presos*gv('cSoft'); // + operación software/BD (COP/preso/mes)
+    const factor=1+(gv('factor')/100); // aportes de ley + prestaciones
+    const nomBase=tec*gv('sTec')+ope*gv('sOpe')+sop*gv('sSop')+coord*gv('sCoord');
+    const nomCOP=nomBase*factor;
+    const otrosCOP=presos*gv('device');
+
+    // ---- Inversión inicial (CAPEX) + amortización ----
+    const capex=gv('cDev')+gv('cFacetec')+gv('cAdec')+gv('cMonitor')+gv('cField')+gv('cMob')+gv('cLegal')+gv('cCap')+gv('cOtro');
+    const amortM=Math.max(1,gv('amortM'));
+    const amortCOP=capex/amortM;
+
+    const sedeCOP=gv('cRent')+gv('cUtil');
+    const transCOP=gv('cTrans');
+    const base=techCOP+nomCOP+amortCOP+sedeCOP+transCOP+otrosCOP;
+    const overCOP=base*(gv('over')/100);
+    const total=base+overCOP;
+
+    const perPreso=presos>0?total/presos:0;
+    const margin=gv('margin')/100;
+    const price=perPreso/(1-Math.min(margin,0.95)); // margen sobre precio
+    const billing=price*presos;
+    const utilidadMes=billing-total;                 // margen mensual en COP
+    const paybackM=utilidadMes>0?capex/utilidadMes:0;
+
+    $('rPerPreso').innerHTML=money(perPreso)+' <small>/preso·mes</small>';
+    $('rTotal').textContent=money(total);
+    $('rCapex').textContent=money(capex);
+    $('rFTE').textContent=fte+' personas';
+
+    const parts=[['T',techCOP],['N',nomCOP],['A',amortCOP],['S',sedeCOP],['X',transCOP],['O',otrosCOP],['V',overCOP]];
+    parts.forEach(([k,v])=>{const p=total>0?v/total*100:0;$('b'+k).style.width=p+'%';$('a'+k).textContent=money(v);$('p'+k).textContent=(p<10?p.toFixed(1):Math.round(p))+'%';});
+
+    $('marginLbl').textContent='(margen '+Math.round(margin*100)+'%)';
+    $('rPrice').innerHTML=money(price)+' <small style="font-size:13px;color:var(--ink-soft)">/preso·mes</small>';
+    const pay = paybackM>0 ? ' · recuperas la inversión en ~<strong>'+Math.ceil(paybackM)+' meses</strong>' : '';
+    $('rBilling').innerHTML='Facturación mensual: '+money(billing)+' · anual: '+money(billing*12)+pay;
+
+    $('detail').innerHTML='<strong>Inversión inicial '+money(capex)+'</strong>, amortizada en '+amortM+' meses = '+money(amortCOP)+'/mes. '
+      +'Nómina cargada '+money(nomCOP)+' (de los cuales '+money(nomCOP-nomBase)+' son aportes de ley, factor '+Math.round((factor-1)*100)+'%). '
+      +'Utilidad mensual estimada: '+money(utilidadMes)+'.';
+  }
+  // Convertir campos de dinero a texto con separador de miles y formatearlos al cargar.
+  MONEY.forEach(id=>{
+    const el=$(id);
+    el.type='text'; el.setAttribute('inputmode','numeric'); el.autocomplete='off';
+    fmtMoney(el);
+    el.addEventListener('input',()=>fmtMoney(el));
+  });
+  numIds.forEach(id=>$(id).addEventListener('input',calc));
+  $('mCOP').addEventListener('click',()=>setCur('COP')); $('mUSD').addEventListener('click',()=>setCur('USD'));
+  function setCur(c){cur=c;$('mCOP').setAttribute('aria-pressed',c==='COP');$('mUSD').setAttribute('aria-pressed',c==='USD');calc();}
+  calc();
+</script>
