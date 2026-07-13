@@ -65,3 +65,15 @@ En Managed Testing la app reporta el resultado de FaceTec — NO confiable para 
 - `checkins.status`: `pending` | `completed` (el resultado va en `overall_passed`).
 - `checkins.liveness_method`: `accelerometer` | `facetec`.
 - `surprise_verifications.status`: `pending` | `completed` | `expired`.
+
+## Actualizaciones (jul 2026)
+- **Milestone 2 vía proxy** (`facetec-proxy`): la app manda los blobs FaceTec a nuestro Edge Function, que los reenvía a FaceTec y registra el veredicto en `facetec_sessions` (RLS solo service role). `process-checkin` aprueba la cara solo si existe sesión `auth` válida atada al `checkin_id` — ignora lo que reporte el teléfono. Anti-suplantación: `auth` exige refID=usuario; `enroll` exige rol técnico + caso de su org.
+- **Tolerancia GPS**: `gpsPassed = distancia ≤ radio + min(gps_accuracy_m, 150)`. Evita falsas violaciones por ruido del GPS; sigue fallando si sale de verdad.
+- **Escena — re-fotografía**: el prompt detecta foto-de-foto/pantalla (moiré, bordes, reflejos) como criterio duro; los cambios de iluminación (día/noche) NO penalizan.
+- **Ventana unificada a 15 min** (default DB + función SQL + notificaciones).
+- **Idempotencia + captura de errores**: "already completed" responde 200 (no error rojo en reintentos). Cada salida non-2xx se registra en la tabla `checkin_errors` (los logs del edge runtime expiran en plan free).
+- **Refresco de sesión** (`ensureFreshSession` en `supabase.ts`): AppState inicia/detiene auto-refresh + refresca el token si expira en <60s antes del check-in. Arregla el 401 intermitente tras estar la app en segundo plano.
+
+## Escalas numéricas (OJO)
+- `face_score`, `scene_score`: `NUMERIC(4,3)` → escala 0-1. `process-checkin` guarda `scene_score/100`.
+- `gps_distance_m`, `gps_accuracy_m`: `NUMERIC(12,2)` (ensanchadas; un salto de GPS desbordaba `NUMERIC(8,2)` → 500).
