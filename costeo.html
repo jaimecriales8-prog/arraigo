@@ -152,7 +152,14 @@
           <div class="field"><label for="cTrans">Vehículos y transporte <span class="hint">COP/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cTrans" min="0" step="100000" value="20000000"></div></div>
           <div class="field"><label for="device">Datos/SIM/equipo <span class="hint">COP/preso/mes</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="device" min="0" step="1000" value="0"></div></div>
         </div>
-        <div class="field"><label for="over">Overhead admin <span class="hint">% del costo</span></label><div class="inputrow"><span class="pfx">%</span><input type="number" id="over" min="0" step="1" value="15"></div></div>
+        <div class="row2">
+          <div class="field"><label for="cOnb">Onboarding <span class="hint">único por preso — NO mensual</span></label><div class="inputrow"><span class="pfx">$</span><input type="number" id="cOnb" min="0" step="10000" value="150000"></div></div>
+          <div class="field"><label for="over">Overhead admin <span class="hint">% del costo mensual</span></label><div class="inputrow"><span class="pfx">%</span><input type="number" id="over" min="0" step="1" value="15"></div></div>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:9px;font-size:13px;cursor:pointer;margin:2px 0 14px;">
+          <input type="checkbox" id="tecOnb" checked style="margin-top:3px;accent-color:var(--accent);width:16px;height:16px;flex:none;">
+          <span>Los técnicos se cubren con el cargo de onboarding <span class="hint">— los saca del costo mensual (evita doble conteo)</span></span>
+        </label>
         <div class="field"><label for="margin">Margen objetivo <span class="hint">%</span></label><div class="inputrow"><span class="pfx">%</span><input type="number" id="margin" min="0" step="1" value="30"></div></div>
       </section>
     </div>
@@ -175,6 +182,7 @@
         <div class="stat"><div class="k">Inversión inicial</div><div class="v" id="rCapex">—</div></div>
         <div class="stat"><div class="k">Personal total</div><div class="v" id="rFTE">—</div></div>
       </div>
+      <div class="stat" style="margin-bottom:16px;border-color:#0891b2"><div class="k">Onboarding — costo único por preso <span style="color:var(--ink-faint)">(no mensual)</span></div><div class="v" id="rOnb" style="color:#0891b2">—</div></div>
 
       <div class="k" style="font-size:12px;color:var(--ink-faint);font-weight:600;margin-bottom:2px">Composición del costo mensual</div>
       <div class="bar"><span id="bT" style="background:var(--tech)"></span><span id="bN" style="background:var(--nom)"></span><span id="bA" style="background:#0891b2"></span><span id="bS" style="background:#6366f1"></span><span id="bX" style="background:#be123c"></span><span id="bO" style="background:var(--otros)"></span><span id="bV" style="background:var(--over)"></span></div>
@@ -201,9 +209,9 @@
 
 <script>
   const $=id=>document.getElementById(id);
-  const numIds=['presos','dur','cumpl','cob','cap','pctf','verif','fprice','oprice','infra','cSoft','sTec','sOpe','sSop','sCoord','factor','device','over','margin','trm','cDev','cFacetec','cAdec','cMonitor','cField','cMob','cLegal','cCap','cOtro','amortM','cRent','cUtil','cTrans'];
+  const numIds=['presos','dur','cumpl','cob','cap','pctf','verif','fprice','oprice','infra','cSoft','sTec','sOpe','sSop','sCoord','factor','device','over','margin','trm','cOnb','cDev','cFacetec','cAdec','cMonitor','cField','cMob','cLegal','cCap','cOtro','amortM','cRent','cUtil','cTrans'];
   // Campos de dinero (enteros grandes): se muestran con separador de miles.
-  const MONEY=new Set(['presos','trm','cSoft','device','cTrans','cRent','cUtil','sTec','sOpe','sSop','sCoord','cDev','cFacetec','cAdec','cMonitor','cField','cMob','cLegal','cCap','cOtro']);
+  const MONEY=new Set(['presos','trm','cSoft','cOnb','device','cTrans','cRent','cUtil','sTec','sOpe','sSop','sCoord','cDev','cFacetec','cAdec','cMonitor','cField','cMob','cLegal','cCap','cOtro']);
   let cur='COP';
   const WORKDAYS=22,SHIFT=8,PROD=0.8,PROD_H_DAY=SHIFT*PROD,PROD_H_MONTH=WORKDAYS*PROD_H_DAY,WEEKEND=7/5;
   const ceil=Math.ceil;
@@ -256,7 +264,8 @@
     const techUSD=verifMes*pctf*gv('fprice') + verifMes*gv('oprice') + gv('infra');
     const techCOP=techUSD*trm + presos*gv('cSoft'); // + operación software/BD (COP/preso/mes)
     const factor=1+(gv('factor')/100); // aportes de ley + prestaciones
-    const nomBase=tec*gv('sTec')+ope*gv('sOpe')+sop*gv('sSop')+coord*gv('sCoord');
+    const tecEnMensual=$('tecOnb').checked?0:1; // si el onboarding cubre técnicos, salen del mensual
+    const nomBase=tecEnMensual*tec*gv('sTec')+ope*gv('sOpe')+sop*gv('sSop')+coord*gv('sCoord');
     const nomCOP=nomBase*factor;
     const otrosCOP=presos*gv('device');
 
@@ -282,6 +291,9 @@
     $('rTotal').textContent=money(total);
     $('rCapex').textContent=money(capex);
     $('rFTE').textContent=fte+' personas';
+    // Onboarding: costo ÚNICO por preso — no entra al mensual
+    const onbPreso=gv('cOnb');
+    $('rOnb').innerHTML=money(onbPreso)+' <small style="font-size:13px;color:var(--ink-soft)">× '+presos.toLocaleString('es-CO')+' = '+money(onbPreso*presos)+'</small>';
 
     const parts=[['T',techCOP],['N',nomCOP],['A',amortCOP],['S',sedeCOP],['X',transCOP],['O',otrosCOP],['V',overCOP]];
     parts.forEach(([k,v])=>{const p=total>0?v/total*100:0;$('b'+k).style.width=p+'%';$('a'+k).textContent=money(v);$('p'+k).textContent=(p<10?p.toFixed(1):Math.round(p))+'%';});
@@ -303,6 +315,7 @@
     el.addEventListener('input',()=>fmtMoney(el));
   });
   numIds.forEach(id=>$(id).addEventListener('input',calc));
+  $('tecOnb').addEventListener('change',calc);
   $('mCOP').addEventListener('click',()=>setCur('COP')); $('mUSD').addEventListener('click',()=>setCur('USD'));
   function setCur(c){cur=c;$('mCOP').setAttribute('aria-pressed',c==='COP');$('mUSD').setAttribute('aria-pressed',c==='USD');calc();}
   calc();
