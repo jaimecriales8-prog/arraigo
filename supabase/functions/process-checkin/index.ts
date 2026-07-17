@@ -287,8 +287,9 @@ Reply with ONLY a JSON object:
     }
 
     // Alertas al operador por CUALQUIER verificación fallida (no solo GPS).
+    // OJO: la tabla alerts NO tiene organization_id (se deriva del caso vía RLS).
     const alertas: Array<Record<string, unknown>> = []
-    const baseAlert = { organization_id: caso.organization_id, case_id: checkin.case_id, checkin_id: checkinId }
+    const baseAlert = { case_id: checkin.case_id, checkin_id: checkinId }
     if (gpsIsMock) {
       alertas.push({ ...baseAlert, severity: 'critical', type: 'mock_gps', message: 'GPS simulado detectado' })
     } else if (!gpsPassed) {

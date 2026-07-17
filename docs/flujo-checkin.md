@@ -78,6 +78,13 @@ En Managed Testing la app reporta el resultado de FaceTec — NO confiable para 
 - **App corta el flujo si FaceTec no pasa**: `FacetecSelfie` revisa `result.livenessPassed`; si falla/cancela → muestra "no se completó" con **Reintentar / Cancelar**, NO avanza a GPS/escena. Cancelar → el check-in queda `pending` (se maneja por expiración de ventana, pendiente job de "missed check-in").
 - **Alertas por cualquier verificación fallida**: `process-checkin` genera `alerts` no solo por GPS. Tipos: `mock_gps` (critical), `gps_out` (warning), `face_fail` (critical, FaceTec completó en el teléfono pero el servidor no validó → posible suplantación), `scene_fail` (warning). `alerts.type` es TEXT libre; `severity` enum info/warning/critical.
 
+## Vencimiento de verificaciones (2026-07-13)
+`pg_cron` → `expire_missed_verifications()` cada 15 min:
+- Check-in programado `pending` con `window_closes_at < now()` → status `missed` + alerta `missed` (warning).
+- Sorpresa `pending` con `expires_at < now()` → status `expired` + alerta `surprise_missed` (critical).
+- Enum `checkin_status`: pending | completed | failed | missed | excused.
+- **OJO — bug corregido:** la tabla `alerts` NO tiene `organization_id` (se deriva del caso vía RLS). `process-checkin` insertaba alertas con ese campo → fallaban en silencio (nunca se creaban). Corregido: los inserts de alerta usan solo `case_id, checkin_id, severity, type, message`.
+
 ## Escalas numéricas (OJO)
 - `face_score`, `scene_score`: `NUMERIC(4,3)` → escala 0-1. `process-checkin` guarda `scene_score/100`.
 - `gps_distance_m`, `gps_accuracy_m`: `NUMERIC(12,2)` (ensanchadas; un salto de GPS desbordaba `NUMERIC(8,2)` → 500).
