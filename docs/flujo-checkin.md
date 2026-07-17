@@ -74,6 +74,10 @@ En Managed Testing la app reporta el resultado de FaceTec — NO confiable para 
 - **Idempotencia + captura de errores**: "already completed" responde 200 (no error rojo en reintentos). Cada salida non-2xx se registra en la tabla `checkin_errors` (los logs del edge runtime expiran en plan free).
 - **Refresco de sesión** (`ensureFreshSession` en `supabase.ts`): AppState inicia/detiene auto-refresh + refresca el token si expira en <60s antes del check-in. Arregla el 401 intermitente tras estar la app en segundo plano.
 
+## Manejo de fallo facial (2026-07-13)
+- **App corta el flujo si FaceTec no pasa**: `FacetecSelfie` revisa `result.livenessPassed`; si falla/cancela → muestra "no se completó" con **Reintentar / Cancelar**, NO avanza a GPS/escena. Cancelar → el check-in queda `pending` (se maneja por expiración de ventana, pendiente job de "missed check-in").
+- **Alertas por cualquier verificación fallida**: `process-checkin` genera `alerts` no solo por GPS. Tipos: `mock_gps` (critical), `gps_out` (warning), `face_fail` (critical, FaceTec completó en el teléfono pero el servidor no validó → posible suplantación), `scene_fail` (warning). `alerts.type` es TEXT libre; `severity` enum info/warning/critical.
+
 ## Escalas numéricas (OJO)
 - `face_score`, `scene_score`: `NUMERIC(4,3)` → escala 0-1. `process-checkin` guarda `scene_score/100`.
 - `gps_distance_m`, `gps_accuracy_m`: `NUMERIC(12,2)` (ensanchadas; un salto de GPS desbordaba `NUMERIC(8,2)` → 500).

@@ -37,31 +37,46 @@ function FacetecSelfie() {
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
   const { profile } = useAuth()
   const { setFacetecResult } = useCheckinStore()
-  const [error, setError] = useState<string | null>(null)
-  const startedRef = useRef(false)
+  const [status, setStatus] = useState<'running' | 'failed'>('running')
+  const [msg, setMsg] = useState('')
+  const runningRef = useRef(false)
 
-  useEffect(() => {
-    if (startedRef.current || !profile?.id) return
-    startedRef.current = true
-    ;(async () => {
-      try {
-        const result = await facetecAuthenticate(profile.id, checkinId)
-        setFacetecResult(result)
-        router.push({ pathname: '/(imputado)/checkin/gps', params: { checkinId } })
-      } catch (e: any) {
-        setError(e?.message ?? 'No se pudo verificar tu identidad.')
+  const run = useCallback(async () => {
+    if (runningRef.current || !profile?.id) return
+    runningRef.current = true
+    setStatus('running')
+    try {
+      const result = await facetecAuthenticate(profile.id, checkinId)
+      // Si FaceTec no se completó (cancelado o no pasó el liveness), NO se avanza.
+      // Cortamos aquí y ofrecemos reintentar — el check-in no continúa a GPS.
+      if (!result.livenessPassed) {
+        runningRef.current = false
+        setMsg('No se completó la verificación facial. Debes mostrar tu rostro en vivo, sin foto ni video, para continuar.')
+        setStatus('failed')
+        return
       }
-    })()
-  }, [profile?.id])
+      setFacetecResult(result)
+      router.push({ pathname: '/(imputado)/checkin/gps', params: { checkinId } })
+    } catch (e: any) {
+      runningRef.current = false
+      setMsg(e?.message ?? 'No se pudo iniciar la verificación facial.')
+      setStatus('failed')
+    }
+  }, [profile?.id, checkinId])
+
+  useEffect(() => { run() }, [run])
 
   return (
     <View style={[styles.container, styles.center]}>
-      {error ? (
+      {status === 'failed' ? (
         <>
           <Text style={styles.title}>Verificación facial</Text>
-          <Text style={styles.subtitle}>{error}</Text>
-          <TouchableOpacity style={styles.btn} onPress={() => router.replace('/(imputado)/home')}>
-            <Text style={styles.btnText}>Volver</Text>
+          <Text style={[styles.subtitle, { textAlign: 'center' }]}>{msg}</Text>
+          <TouchableOpacity style={styles.btn} onPress={run}>
+            <Text style={styles.btnText}>Reintentar</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={{ paddingVertical: 12, marginTop: 4 }} onPress={() => router.replace('/(imputado)/home')}>
+            <Text style={{ color: '#4a6a8a', fontSize: 15 }}>Cancelar</Text>
           </TouchableOpacity>
         </>
       ) : (

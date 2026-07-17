@@ -286,15 +286,24 @@ Reply with ONLY a JSON object:
         .eq('status', 'pending')
     }
 
-    if (!gpsPassed || gpsIsMock) {
-      await supabase.from('alerts').insert({
-        organization_id: caso.organization_id,
-        case_id: checkin.case_id,
-        checkin_id: checkinId,
-        severity: gpsIsMock ? 'critical' : 'warning',
-        type: gpsIsMock ? 'mock_gps' : 'gps_out',
-        message: failureReason ?? 'GPS fuera del domicilio',
-      })
+    // Alertas al operador por CUALQUIER verificación fallida (no solo GPS).
+    const alertas: Array<Record<string, unknown>> = []
+    const baseAlert = { organization_id: caso.organization_id, case_id: checkin.case_id, checkin_id: checkinId }
+    if (gpsIsMock) {
+      alertas.push({ ...baseAlert, severity: 'critical', type: 'mock_gps', message: 'GPS simulado detectado' })
+    } else if (!gpsPassed) {
+      alertas.push({ ...baseAlert, severity: 'warning', type: 'gps_out', message: `GPS fuera del domicilio${gpsDistanceM != null ? ` (${Math.round(gpsDistanceM)}m)` : ''}` })
+    }
+    // Fallo facial solo tiene sentido con FaceTec (sin él, la cara es placeholder).
+    // Posible suplantación → critical.
+    if (isFacetec && !facePassed) {
+      alertas.push({ ...baseAlert, severity: 'critical', type: 'face_fail', message: 'Verificación facial fallida (posible suplantación)' })
+    }
+    if (!scenePassed) {
+      alertas.push({ ...baseAlert, severity: 'warning', type: 'scene_fail', message: 'La escena no coincide con el domicilio registrado' })
+    }
+    if (alertas.length > 0) {
+      await supabase.from('alerts').insert(alertas)
     }
 
     return new Response(
