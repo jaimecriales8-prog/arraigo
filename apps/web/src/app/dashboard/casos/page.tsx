@@ -31,7 +31,7 @@ async function getCasos() {
 
   const { data, error } = await supabase
     .from('cases')
-    .select('id, case_number, status, checkin_times, address, city, imputado:profiles!cases_imputado_id_fkey(full_name), checkins(id,status,created_at)')
+    .select('id, case_number, status, checkin_times, address, city, imputado:profiles!cases_imputado_id_fkey(full_name), checkins(id,status,overall_passed,created_at)')
     .order('created_at', { ascending: false })
 
   if (error) console.error('[casos] error:', error.message)
@@ -97,8 +97,10 @@ export default async function CasosPage() {
                 if (!ultimo) return { label: 'Sin check-ins', color: 'var(--warning)' }
                 const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
                 const ultimoDate = new Date(ultimo.created_at)
-                if (ultimoDate >= hace24h && (ultimo.status === 'completed' || ultimo.status === 'passed')) return { label: 'Al día', color: 'var(--success)' }
+                const aprobado = (ultimo.status === 'completed' || ultimo.status === 'passed') && ultimo.overall_passed
+                if (ultimoDate >= hace24h && aprobado) return { label: 'Al día', color: 'var(--success)' }
                 if (ultimoDate >= hace24h && ultimo.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
+                if (ultimoDate >= hace24h) return { label: 'Verificación fallida', color: 'var(--danger)' }
                 return { label: 'En mora', color: 'var(--danger)' }
               })()
 

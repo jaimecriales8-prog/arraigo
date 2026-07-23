@@ -9,11 +9,13 @@ async function getStats() {
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
   const [{ count: totalCasos }, { count: checkinHoy }, { count: alertas }] = await Promise.all([
-    supabase.from('cases').select('*', { count: 'exact', head: true }),
+    supabase.from('cases').select('*', { count: 'exact', head: true })
+      .eq('status', 'active'),
     supabase.from('checkins').select('*', { count: 'exact', head: true })
       .gte('created_at', new Date().toISOString().split('T')[0]),
-    supabase.from('checkins').select('*', { count: 'exact', head: true })
-      .eq('status', 'failed'),
+    // Alertas SIN resolver (antes contaba checkins.status='failed', que nunca ocurre)
+    supabase.from('alerts').select('*', { count: 'exact', head: true })
+      .eq('is_resolved', false),
   ])
   return { totalCasos: totalCasos ?? 0, checkinHoy: checkinHoy ?? 0, alertas: alertas ?? 0 }
 }

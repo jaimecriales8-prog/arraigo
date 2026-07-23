@@ -5,18 +5,21 @@ import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
 import ReasignarTecnico from './ReasignarTecnico'
 
-const STATUS_COLOR: Record<string, string> = {
-  completed: 'var(--success)',
-  passed: 'var(--success)',
-  failed: 'var(--danger)',
-  pending: 'var(--warning)',
+// Resultado real de un check-in: un check-in puede quedar status='completed'
+// pero con overall_passed=false → es FALLIDO, no aprobado.
+function checkinResult(c: { status: string; overall_passed?: boolean | null }): { label: string; color: string } {
+  if (c.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
+  if (c.status === 'missed') return { label: 'No realizada', color: 'var(--danger)' }
+  if (c.status === 'excused') return { label: 'Excusada', color: 'var(--text-muted)' }
+  if (c.status === 'failed') return { label: 'Fallido', color: 'var(--danger)' }
+  // completed / passed → depende de overall_passed
+  return c.overall_passed
+    ? { label: 'Aprobado', color: 'var(--success)' }
+    : { label: 'Fallido', color: 'var(--danger)' }
 }
-const STATUS_LABEL: Record<string, string> = {
-  completed: 'Aprobado',
-  passed: 'Aprobado',
-  failed: 'Fallido',
-  pending: 'Pendiente',
-}
+const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
+const isFailed = (c: any) => c.status === 'failed' || c.status === 'missed' ||
+  ((c.status === 'completed' || c.status === 'passed') && c.overall_passed === false)
 const SORPRESA_COLOR: Record<string, string> = {
   pending: 'var(--warning)',
   completed: 'var(--success)',
@@ -42,7 +45,7 @@ async function getCaso(id: string) {
       technician_id, organization_id,
       imputado:profiles!cases_imputado_id_fkey(full_name),
       tecnico:profiles!cases_technician_id_fkey(full_name),
-      checkins(id, status, created_at),
+      checkins(id, status, overall_passed, created_at),
       surprise_verifications(id, status, created_at, expires_at)
     `)
     .eq('id', id)
@@ -79,8 +82,8 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
   const checkins = (caso.checkins ?? []).sort((a: any, b: any) =>
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   )
-  const passed = checkins.filter((c: any) => c.status === 'completed' || c.status === 'passed').length
-  const failed = checkins.filter((c: any) => c.status === 'failed').length
+  const passed = checkins.filter(isPassed).length
+  const failed = checkins.filter(isFailed).length
   const CHECKINS_VISIBLES = 30
   const checkinsVisibles = checkins.slice(0, CHECKINS_VISIBLES)
 
@@ -173,13 +176,12 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                   })}
                 </td>
                 <td style={{ padding: '14px 20px' }}>
-                  <span style={{
-                    padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                    background: (STATUS_COLOR[c.status] ?? 'var(--text-muted)') + '22',
-                    color: STATUS_COLOR[c.status] ?? 'var(--text-muted)',
-                  }}>
-                    {STATUS_LABEL[c.status] ?? c.status}
-                  </span>
+                  {(() => { const r = checkinResult(c); return (
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
+                      background: r.color + '22', color: r.color,
+                    }}>{r.label}</span>
+                  ) })()}
                 </td>
               </tr>
             ))}
