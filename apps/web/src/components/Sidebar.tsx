@@ -14,6 +14,7 @@ const ROLE_LABEL: Record<string, string> = {
 const navItems = [
   { href: '/dashboard', label: 'Inicio', icon: '📊' },
   { href: '/dashboard/casos', label: 'Casos', icon: '📋' },
+  { href: '/dashboard/alertas', label: 'Alertas', icon: '🚨' },
   { href: '/dashboard/usuarios', label: 'Usuarios', icon: '👥', roles: ['judicial', 'super_admin', 'admin'] },
 ]
 
