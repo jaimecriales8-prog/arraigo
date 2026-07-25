@@ -16,6 +16,7 @@ const ALERT_TYPE_LABEL: Record<string, string> = {
   gps_out: 'GPS fuera del domicilio', mock_gps: 'GPS simulado', face_fail: 'Verificación facial fallida',
   scene_fail: 'Escena no coincide', missed: 'Verificación no realizada', surprise_missed: 'Sorpresa no atendida',
   escalation: 'Escalamiento — 3 incumplimientos seguidos',
+  device_silent: 'Dispositivo sin reportar actividad',
 }
 
 const fmt = (iso: string | null) =>
@@ -71,6 +72,7 @@ function ReporteDocument({ caso, checkins, alertas, stats }: any) {
           ['Horarios de verificación', (caso.checkin_times ?? []).join(' · ') || '—'],
           ['Radio permitido', `${caso.geofence_radius_m ?? '—'} metros`],
           ['Fecha de inicio', caso.start_date ? fmt(caso.start_date) : '—'],
+          ['Última actividad del dispositivo', caso.imputado_last_seen_at ? fmt(caso.imputado_last_seen_at) : 'Sin reportar aún'],
         ].map(([label, value]) => (
           <View style={styles.row} key={label}>
             <Text style={styles.label}>{label}</Text>
@@ -158,7 +160,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     .from('cases')
     .select(`
       id, case_number, status, checkin_times, geofence_radius_m, address, city, start_date, organization_id,
-      imputado:profiles!cases_imputado_id_fkey(full_name),
+      imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name)
     `)
     .eq('id', id)
@@ -196,6 +198,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const casoPlano = {
     ...caso,
     imputado_nombre: (caso as any).imputado?.full_name,
+    imputado_last_seen_at: (caso as any).imputado?.last_seen_at,
     tecnico_nombre: (caso as any).tecnico?.full_name,
   }
 

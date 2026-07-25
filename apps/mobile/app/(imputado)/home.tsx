@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, A
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '../../src/hooks/useAuth'
 import { useCase } from '../../src/hooks/useCase'
-import { useCheckinNotifications, useSurprisePush } from '../../src/hooks/usePushNotifications'
+import { useCheckinNotifications, useSurprisePush, useHeartbeat } from '../../src/hooks/usePushNotifications'
 import { supabase } from '../../src/lib/supabase'
 
 export default function HomeScreen() {
@@ -17,6 +17,8 @@ export default function HomeScreen() {
   useCheckinNotifications(caseData?.checkin_times as string[] | undefined, caseData?.checkin_window_min)
   // Registro del token APNs para push de sorpresas
   useSurprisePush(profile?.id)
+  // Señal de "última vez visto" (detecta dispositivo apagado/inactivo)
+  useHeartbeat(profile?.id)
 
   // Recargar cuando la pantalla vuelve a tener foco (después de un checkin)
   useFocusEffect(useCallback(() => {

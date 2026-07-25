@@ -25,10 +25,10 @@ Trigger en `checkins` que detecta 3 incumplimientos consecutivos (missed/failed/
 Botón "📄 Descargar reporte" en el detalle del caso → genera un PDF (vía `@react-pdf/renderer`, server-side) con info del caso, resumen de cumplimiento (% aprobados sobre check-ins no excusados), todos los incidentes (alertas) y el historial completo de check-ins con motivo de fallo/excusa. Para anexar al expediente judicial.
 → `apps/web/src/app/api/casos/[id]/reporte/route.tsx`
 
-## 🔨 En progreso / próximo
-
 ### 5. Dispositivo apagado / desinstalado / sin señal (app + backend)
-Hoy si el imputado apaga el teléfono o desinstala la app, no pasa nada — no hay heartbeat. Necesita: "última vez visto" + alerta si el dispositivo lleva X horas sin reportar. Apagar el teléfono no puede ser una forma gratis de evadir.
+`profiles.last_seen_at` actualizado por la app (al abrir + cada 15 min en foreground) y por `process-checkin` server-side en cada verificación. Cron cada 30 min crea alerta crítica `device_silent` si un imputado con caso activo lleva más de 12h sin reportar (dedup: no repite mientras la ventana de silencio siga vigente). "Última actividad del dispositivo" visible en el detalle del caso y en el reporte PDF.
+**Limitación conocida (documentada en la migración y en el código):** la señal solo se actualiza mientras la app está en primer plano o al completar un check-in — no hay tarea en segundo plano registrada, así que apagar el teléfono o forzar el cierre de la app deja de generar señal, que es justo lo que se quiere detectar. Complementa (no reemplaza) las alertas de check-in no realizado.
+→ `supabase/migrations/20260725_011_heartbeat_dispositivo.sql`, `apps/mobile/src/hooks/usePushNotifications.ts` (`useHeartbeat`), `supabase/functions/process-checkin/index.ts`
 
 ## ⏸️ Diferido
 

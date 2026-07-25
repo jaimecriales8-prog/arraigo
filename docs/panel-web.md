@@ -39,6 +39,7 @@ Detalle del caso con:
 - **Ver fotos** (`FotosViewer.tsx`) — modal con selfie / escena capturada / foto de referencia, vía URLs firmadas de `GET /api/checkins/[id]/fotos`. Disponible en check-ins normales y en sorpresas (por el `checkin_id` enlazado en `surprise_verifications`).
 - **Excusar** (`ExcusarCheckin.tsx`, solo judicial/super_admin) — en check-ins `missed`/`failed`/`completed` fallido: modal con nota → pasa a `excused` y resuelve las alertas asociadas. Ya no cuenta como incumplimiento (estadísticas ni streak de escalamiento).
 - **Gestionar caso** (`EditarCaso.tsx`, solo judicial/super_admin) — cambiar estado (activo/suspendido/cerrado), horarios de check-in y radio del geofence, junto al bloque de reasignar técnico.
+- **Última actividad del dispositivo** — `profiles.last_seen_at` del imputado, coloreado (verde <4h, ámbar <12h, rojo >12h o "Sin reportar aún"). Ver heartbeat abajo.
 - Historial de check-ins con scores de cara, escena y estado GPS (paginado)
 
 ### /dashboard/alertas
@@ -94,6 +95,9 @@ Panel responsivo vía CSS en `globals.css` (media query 768px): barra lateral �
 - `casos/[id]/FotosViewer.tsx` — modal de evidencia fotográfica (selfie/escena/referencia)
 - `casos/[id]/ExcusarCheckin.tsx` — modal para excusar una ausencia con nota
 - `casos/[id]/HistorialTabla.tsx` — tabla paginada de check-ins/sorpresas, con acciones de excusar/fotos
+
+## Heartbeat de dispositivo (2026-07-25)
+`profiles.last_seen_at` se actualiza desde dos fuentes: la app móvil en foreground (`useHeartbeat`, cada 15 min + al abrir/reactivar) y `process-checkin` server-side en cada verificación (señal más confiable). Un cron cada 30 min (`check_device_silence()`) crea alerta crítica `device_silent` si un imputado con caso activo lleva >12h sin reportar, con dedup para no repetir mientras la ventana de silencio siga vigente. **Limitación:** no hay tarea en segundo plano — apagar el teléfono o forzar cierre de la app deja de generar señal (justo lo que se detecta), pero tampoco hay forma de refrescar `last_seen_at` mientras eso ocurre. Ver `supabase/migrations/20260725_011_heartbeat_dispositivo.sql`.
 
 ## Deploy
 **Root Directory `apps/web` ya configurado → auto-deploy en cada push a main.** Manual (respaldo): `npx vercel --prod` desde la raíz del repo (NO desde apps/web, o duplica la ruta).

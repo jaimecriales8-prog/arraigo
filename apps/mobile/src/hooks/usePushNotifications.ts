@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { AppState } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import { router } from 'expo-router'
 import { supabase } from '../lib/supabase'
@@ -76,6 +77,37 @@ export function useSurprisePush(userId: string | undefined) {
         console.warn('[push] registro APNs falló:', e)
       }
     })()
+  }, [userId])
+}
+
+const HEARTBEAT_INTERVAL_MS = 15 * 60 * 1000 // 15 min
+
+// Señal de "última vez visto" para detectar dispositivos apagados/inactivos.
+// LIMITACIÓN: solo reporta mientras la app está en primer plano (al abrir y
+// cada 15 min mientras sigue abierta) — no hay tarea en segundo plano
+// registrada, así que apagar el teléfono o forzar el cierre de la app deja
+// de generar señal (que es justo lo que el backend usa para alertar).
+// Ver supabase/migrations/20260725_011_heartbeat_dispositivo.sql.
+export function useHeartbeat(userId: string | undefined) {
+  useEffect(() => {
+    if (!userId) return
+
+    function ping() {
+      supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', userId!)
+        .then(({ error }) => { if (error) console.warn('[heartbeat] falló:', error.message) })
+    }
+
+    ping()
+
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') ping()
+    })
+    const interval = setInterval(ping, HEARTBEAT_INTERVAL_MS)
+
+    return () => {
+      sub.remove()
+      clearInterval(interval)
+    }
   }, [userId])
 }
 

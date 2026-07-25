@@ -27,6 +27,7 @@ const TIPO: Record<string, string> = {
   missed: 'Verificación no realizada',
   surprise_missed: 'Sorpresa no atendida',
   escalation: '🚨 Escalamiento — 3 incumplimientos seguidos',
+  device_silent: '📵 Dispositivo sin reportar actividad',
 }
 
 function btn(disabled: boolean): React.CSSProperties {

@@ -46,6 +46,11 @@ Deno.serve(async (req) => {
     if (authError || !user) return fail('auth', `Sesión inválida: ${authError?.message ?? 'sin usuario'}`, 401)
     dbgUserId = user.id
 
+    // Señal de "última vez visto" verificada server-side (más confiable que el
+    // heartbeat de la app). Fire-and-forget: no debe bloquear el check-in.
+    supabase.from('profiles').update({ last_seen_at: new Date().toISOString() }).eq('id', user.id)
+      .then(() => {}, () => {})
+
     const body = await req.json()
     const {
       checkinId, selfieUrl, sceneUrl, gpsLat, gpsLng, gpsAccuracyM, gpsIsMock,

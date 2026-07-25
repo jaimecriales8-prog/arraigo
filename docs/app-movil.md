@@ -87,6 +87,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_E8qhtpQDMKGDAIAuclv2UA_vcJpcaa1
 - Token se guarda en `profiles.push_token`
 - En producción con TestFlight/App Store se necesitan APNS certificates en EAS
 
+## Heartbeat (2026-07-25)
+`useHeartbeat` (en `usePushNotifications.ts`) actualiza `profiles.last_seen_at` al abrir la app, al volver a foreground y cada 15 min mientras sigue abierta. Es la señal que el backend usa para alertar si el dispositivo lleva >12h sin reportar (ver `docs/panel-web.md` → Heartbeat de dispositivo). Solo funciona en foreground — no hay tarea en segundo plano registrada.
+
 ## Permisos iOS
 - Cámara: "Arraigo necesita acceso a la cámara para verificar tu identidad."
 - Ubicación: "Arraigo necesita tu ubicación para verificar que estás en tu domicilio."

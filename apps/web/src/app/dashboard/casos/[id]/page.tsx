@@ -12,6 +12,15 @@ const ESTADO_LABEL: Record<string, string> = {
   onboarding: 'En configuración', active: 'Activo', suspended: 'Suspendido', closed: 'Cerrado', revoked: 'Revocado',
 }
 
+function ultimaActividad(lastSeenAt: string | null | undefined): { text: string; color: string } {
+  if (!lastSeenAt) return { text: 'Sin reportar aún', color: 'var(--text-muted)' }
+  const ms = Date.now() - new Date(lastSeenAt).getTime()
+  const horas = ms / 3_600_000
+  const fmt = new Date(lastSeenAt).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
+  const color = horas > 12 ? 'var(--danger)' : horas > 4 ? 'var(--warning)' : 'var(--success)'
+  return { text: fmt, color }
+}
+
 // Conteos para las estadísticas (un check-in completed con overall_passed=false es FALLIDO).
 const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
 const isFailed = (c: any) => c.status === 'failed' || c.status === 'missed' ||
@@ -29,7 +38,7 @@ async function getCaso(id: string) {
     .select(`
       id, case_number, status, checkin_times, geofence_radius_m, address, city, location,
       technician_id, organization_id,
-      imputado:profiles!cases_imputado_id_fkey(full_name),
+      imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
       surprise_verifications(id, status, created_at, expires_at, checkins(id, overall_passed, face_photo_url, scene_photo_url))
@@ -111,6 +120,15 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                 <span style={{ fontWeight: 500, textAlign: 'right' }}>{value}</span>
               </div>
             ))}
+            {(() => {
+              const actividad = ultimaActividad((caso.imputado as any)?.last_seen_at)
+              return (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 14 }}>
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>Última actividad del dispositivo</span>
+                  <span style={{ fontWeight: 500, textAlign: 'right', color: actividad.color }}>{actividad.text}</span>
+                </div>
+              )
+            })()}
           </div>
           {(caso as any)._puedeReasignar && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
