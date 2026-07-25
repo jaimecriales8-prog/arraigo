@@ -4,41 +4,12 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
 import ReasignarTecnico from './ReasignarTecnico'
+import HistorialTabla from './HistorialTabla'
 
-// Resultado real de un check-in: un check-in puede quedar status='completed'
-// pero con overall_passed=false → es FALLIDO, no aprobado.
-function checkinResult(c: { status: string; overall_passed?: boolean | null }): { label: string; color: string } {
-  if (c.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
-  if (c.status === 'missed') return { label: 'No realizada', color: 'var(--danger)' }
-  if (c.status === 'excused') return { label: 'Excusada', color: 'var(--text-muted)' }
-  if (c.status === 'failed') return { label: 'Fallido', color: 'var(--danger)' }
-  // completed / passed → depende de overall_passed
-  return c.overall_passed
-    ? { label: 'Aprobado', color: 'var(--success)' }
-    : { label: 'Fallido', color: 'var(--danger)' }
-}
+// Conteos para las estadísticas (un check-in completed con overall_passed=false es FALLIDO).
 const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
 const isFailed = (c: any) => c.status === 'failed' || c.status === 'missed' ||
   ((c.status === 'completed' || c.status === 'passed') && c.overall_passed === false)
-// Resultado real de una sorpresa: 'completed' solo significa que respondió;
-// si el check-in enlazado falló (overall_passed=false) → es FALLIDA.
-function sorpresaResult(s: { status: string; checkins?: { overall_passed?: boolean | null } | null }): { label: string; color: string } {
-  if (s.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
-  if (s.status === 'expired') return { label: 'Incumplida', color: 'var(--danger)' }
-  // completed → depende del resultado del check-in
-  if (s.checkins && s.checkins.overall_passed === false) return { label: 'Fallida', color: 'var(--danger)' }
-  return { label: 'Completada', color: 'var(--success)' }
-}
-const SORPRESA_COLOR: Record<string, string> = {
-  pending: 'var(--warning)',
-  completed: 'var(--success)',
-  expired: 'var(--danger)',
-}
-const SORPRESA_LABEL: Record<string, string> = {
-  pending: 'Pendiente',
-  completed: 'Completada',
-  expired: 'Incumplida',
-}
 
 async function getCaso(id: string) {
   const cookieStore = await cookies()
@@ -93,8 +64,6 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
   )
   const passed = checkins.filter(isPassed).length
   const failed = checkins.filter(isFailed).length
-  const CHECKINS_VISIBLES = 30
-  const checkinsVisibles = checkins.slice(0, CHECKINS_VISIBLES)
 
   return (
     <div>
@@ -161,97 +130,27 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>Historial de check-ins</h2>
         </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {['Fecha', 'Estado'].map(h => (
-                <th key={h} style={{
-                  padding: '12px 20px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
-                  textTransform: 'uppercase', letterSpacing: '0.05em',
-                }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {checkins.length === 0 && (
-              <tr><td colSpan={2} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin check-ins aún.</td></tr>
-            )}
-            {checkinsVisibles.map((c: any, i: number) => (
-              <tr key={c.id} style={{ borderBottom: i < checkinsVisibles.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                <td style={{ padding: '14px 20px', fontSize: 13 }}>
-                  {new Date(c.created_at).toLocaleString('es-CO', {
-                    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
-                  })}
-                </td>
-                <td style={{ padding: '14px 20px' }}>
-                  {(() => { const r = checkinResult(c); return (
-                    <span style={{
-                      padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                      background: r.color + '22', color: r.color,
-                    }}>{r.label}</span>
-                  ) })()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {checkins.length > CHECKINS_VISIBLES && (
-          <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
-            Mostrando los {CHECKINS_VISIBLES} más recientes de {checkins.length} check-ins
-          </div>
-        )}
+        <HistorialTabla kind="checkin" rows={checkins.map((c: any) => ({
+          id: c.id, status: c.status, created_at: c.created_at, overall_passed: c.overall_passed,
+        }))} />
       </div>
 
       {/* Verificaciones sorpresa */}
       {(() => {
-        const SORPRESAS_VISIBLES = 20
-        const sorpresasAll = ((caso as any).surprise_verifications ?? []).sort((a: any, b: any) =>
-          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        )
-        const sorpresas = sorpresasAll.slice(0, SORPRESAS_VISIBLES)
+        const sorpresas = ((caso as any).surprise_verifications ?? [])
+          .slice()
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+          .map((s: any) => ({
+            id: s.id, status: s.status, created_at: s.created_at, expires_at: s.expires_at,
+            checkin_overall_passed: s.checkins?.overall_passed ?? null,
+          }))
         return (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginTop: 20 }}>
             <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <h2 style={{ fontSize: 16, fontWeight: 600 }}>Verificaciones sorpresa</h2>
               <SorpresaButton caseId={caso.id} />
             </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  {['Enviada', 'Expira', 'Estado'].map(h => (
-                    <th key={h} style={{ padding: '12px 20px', textAlign: 'left', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {sorpresas.length === 0 && (
-                  <tr><td colSpan={3} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin verificaciones sorpresa aún.</td></tr>
-                )}
-                {sorpresas.map((s: any, i: number) => (
-                  <tr key={s.id} style={{ borderBottom: i < sorpresas.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <td style={{ padding: '14px 20px', fontSize: 13 }}>
-                      {new Date(s.created_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
-                    </td>
-                    <td style={{ padding: '14px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
-                      {new Date(s.expires_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
-                    </td>
-                    <td style={{ padding: '14px 20px' }}>
-                      {(() => { const r = sorpresaResult(s); return (
-                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: r.color + '22', color: r.color }}>
-                        {r.label}
-                      </span>
-                      ) })()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {sorpresasAll.length > SORPRESAS_VISIBLES && (
-              <div style={{ padding: '12px 24px', borderTop: '1px solid var(--border)', fontSize: 12, color: 'var(--text-muted)', textAlign: 'center' }}>
-                Mostrando las {SORPRESAS_VISIBLES} más recientes de {sorpresasAll.length} verificaciones
-              </div>
-            )}
+            <HistorialTabla kind="surprise" rows={sorpresas} />
           </div>
         )
       })()}
