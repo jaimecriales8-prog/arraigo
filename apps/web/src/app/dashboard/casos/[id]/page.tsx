@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
 import ReasignarTecnico from './ReasignarTecnico'
 import HistorialTabla from './HistorialTabla'
+import UbicacionMapa from './UbicacionMapaCliente'
 
 // Conteos para las estadísticas (un check-in completed con overall_passed=false es FALLIDO).
 const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
@@ -21,12 +22,12 @@ async function getCaso(id: string) {
   const { data: caso } = await supabase
     .from('cases')
     .select(`
-      id, case_number, status, checkin_times, geofence_radius_m, address, city,
+      id, case_number, status, checkin_times, geofence_radius_m, address, city, location,
       technician_id, organization_id,
       imputado:profiles!cases_imputado_id_fkey(full_name),
       tecnico:profiles!cases_technician_id_fkey(full_name),
-      checkins(id, status, overall_passed, created_at),
-      surprise_verifications(id, status, created_at, expires_at, checkins(overall_passed))
+      checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
+      surprise_verifications(id, status, created_at, expires_at, checkins(id, overall_passed, face_photo_url, scene_photo_url))
     `)
     .eq('id', id)
     .single()
@@ -126,12 +127,34 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
+      {(() => {
+        const coords = (caso as any).location?.coordinates as [number, number] | undefined
+        if (!coords) return null
+        const [lng, lat] = coords
+        return (
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Mapa de ubicaciones</h2>
+            <UbicacionMapa
+              homeLat={lat}
+              homeLng={lng}
+              radiusM={(caso as any).geofence_radius_m ?? 100}
+              checkins={checkins.map((c: any) => ({
+                id: c.id, created_at: c.created_at,
+                gps_lat: c.gps_lat, gps_lng: c.gps_lng,
+                gps_passed: c.gps_passed, gps_distance_m: c.gps_distance_m,
+              }))}
+            />
+          </div>
+        )
+      })()}
+
       <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>Historial de check-ins</h2>
         </div>
         <HistorialTabla kind="checkin" rows={checkins.map((c: any) => ({
           id: c.id, status: c.status, created_at: c.created_at, overall_passed: c.overall_passed,
+          has_photos: Boolean(c.face_photo_url || c.scene_photo_url),
         }))} />
       </div>
 
@@ -143,6 +166,8 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
           .map((s: any) => ({
             id: s.id, status: s.status, created_at: s.created_at, expires_at: s.expires_at,
             checkin_overall_passed: s.checkins?.overall_passed ?? null,
+            checkin_id: s.checkins?.id ?? null,
+            has_photos: Boolean(s.checkins?.face_photo_url || s.checkins?.scene_photo_url),
           }))
         return (
           <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginTop: 20 }}>

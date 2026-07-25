@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import FotosViewer from './FotosViewer'
 
 type Row = {
   id: string
@@ -8,6 +9,8 @@ type Row = {
   expires_at?: string
   overall_passed?: boolean | null
   checkin_overall_passed?: boolean | null
+  has_photos?: boolean
+  checkin_id?: string | null
 }
 
 function checkinResult(c: Row): { label: string; color: string } {
@@ -41,7 +44,7 @@ export default function HistorialTabla({ kind, rows, perPage = 8 }: { kind: 'che
   const pages = Math.max(1, Math.ceil(total / perPage))
   const p = Math.min(page, pages - 1)
   const slice = rows.slice(p * perPage, (p + 1) * perPage)
-  const headers = kind === 'checkin' ? ['Fecha', 'Estado'] : ['Enviada', 'Expira', 'Estado']
+  const headers = kind === 'checkin' ? ['Fecha', 'Estado', ''] : ['Enviada', 'Expira', 'Estado', '']
 
   return (
     <>
@@ -70,6 +73,12 @@ export default function HistorialTabla({ kind, rows, perPage = 8 }: { kind: 'che
                     <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: res.color + '22', color: res.color }}>
                       {res.label}
                     </span>
+                  </td>
+                  <td style={{ padding: '13px 20px', textAlign: 'right' }}>
+                    <FotosViewer
+                      checkinId={(kind === 'checkin' ? r.id : r.checkin_id) ?? ''}
+                      hasPhotos={Boolean(kind === 'checkin' ? r.has_photos : r.checkin_id && r.has_photos)}
+                    />
                   </td>
                 </tr>
               )
