@@ -6,6 +6,7 @@ https://arraigo-ten.vercel.app
 ## Stack
 - Next.js (App Router) — `apps/web`
 - Supabase SSR para auth y data
+- Leaflet + react-leaflet (mapa de ubicaciones, tiles OpenStreetMap — sin API key)
 - Deploy: Vercel (proyecto `arraigo`, team `jaime-criales-projects`)
 
 ## Credenciales de acceso
@@ -32,7 +33,12 @@ Detalle del caso con:
 - Info del caso (expediente, imputado, frecuencia, ubicación, radio)
 - Estadísticas (total / aprobados / fallidos)
 - **Botón ⚡ Verificación sorpresa** — dispara notificación push al imputado con 15 min de plazo
-- Historial de check-ins con scores de cara, escena y estado GPS
+- **Mapa de ubicaciones** (`UbicacionMapa.tsx`, Leaflet + OpenStreetMap, sin API key) — geocerca del domicilio (círculo con el radio permitido) + cada check-in con GPS registrado como punto verde (dentro del radio) o rojo (fuera), con popup de fecha/distancia. Carga con `dynamic(..., {ssr:false})` vía `UbicacionMapaCliente.tsx` (esta versión de Next.js exige que el `ssr:false` viva en un Client Component).
+- **Ver fotos** (`FotosViewer.tsx`) — modal con selfie / escena capturada / foto de referencia, vía URLs firmadas de `GET /api/checkins/[id]/fotos`. Disponible en check-ins normales y en sorpresas (por el `checkin_id` enlazado en `surprise_verifications`).
+- Historial de check-ins con scores de cara, escena y estado GPS (paginado)
+
+### /dashboard/alertas
+Lista de alertas sin resolver (críticas, advertencias) con expediente/imputado enlazado y botón para marcar como resuelta. Paginado (12/página).
 
 ### /dashboard/usuarios
 Módulo de gestión de usuarios de la organización:
@@ -51,10 +57,14 @@ Registra un caso (rol judicial/super_admin). Valida imputado de la misma org sin
 ### POST /api/casos/reasignar-tecnico
 Cambia `technician_id` de un caso (rol judicial/super_admin, mismo org).
 
+### GET /api/checkins/[id]/fotos
+Genera signed URLs (5 min TTL) para `face_photo_url`, `scene_photo_url` del checkin y `photo_url` del checkpoint de referencia (bucket privado `checkin-evidence`). Verifica que el checkin pertenezca a un caso de la organización del usuario (o `super_admin`). Normaliza paths viejos guardados como URL pública completa.
+
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
-- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + historial paginado (30 check-ins / 20 sorpresas visibles) + botón sorpresa.
+- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + mapa de ubicaciones + historial paginado (8/página) con botón "Ver fotos" + botón sorpresa.
+- **Alertas** (`/dashboard/alertas`) — alertas sin resolver, paginado (12/página).
 - **Usuarios** — crear usuario (oculto para operador).
 
 ## Responsive móvil (2026-07-12)
@@ -66,6 +76,9 @@ Panel responsivo vía CSS en `globals.css` (media query 768px): barra lateral �
 - `CrearUsuarioForm.tsx` — crear usuario (muestra credenciales, no invitación)
 - `casos/nuevo/CrearCasoForm.tsx` — crear caso
 - `casos/[id]/ReasignarTecnico.tsx` — reasignar técnico
+- `casos/[id]/UbicacionMapa.tsx` + `UbicacionMapaCliente.tsx` — mapa Leaflet de geocerca + check-ins
+- `casos/[id]/FotosViewer.tsx` — modal de evidencia fotográfica (selfie/escena/referencia)
+- `casos/[id]/HistorialTabla.tsx` — tabla paginada de check-ins/sorpresas, con acción de fotos
 
 ## Deploy
 **Root Directory `apps/web` ya configurado → auto-deploy en cada push a main.** Manual (respaldo): `npx vercel --prod` desde la raíz del repo (NO desde apps/web, o duplica la ruta).
