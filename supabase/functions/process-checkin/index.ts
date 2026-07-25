@@ -280,7 +280,7 @@ Reply with ONLY a JSON object:
     if (surpriseVerificationId) {
       await supabase
         .from('surprise_verifications')
-        .update({ status: 'completed' })
+        .update({ status: 'completed', checkin_id: checkinId })
         .eq('id', surpriseVerificationId)
         .eq('case_id', checkin.case_id)
         .eq('status', 'pending')

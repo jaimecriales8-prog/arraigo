@@ -20,6 +20,15 @@ function checkinResult(c: { status: string; overall_passed?: boolean | null }): 
 const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
 const isFailed = (c: any) => c.status === 'failed' || c.status === 'missed' ||
   ((c.status === 'completed' || c.status === 'passed') && c.overall_passed === false)
+// Resultado real de una sorpresa: 'completed' solo significa que respondió;
+// si el check-in enlazado falló (overall_passed=false) → es FALLIDA.
+function sorpresaResult(s: { status: string; checkins?: { overall_passed?: boolean | null } | null }): { label: string; color: string } {
+  if (s.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
+  if (s.status === 'expired') return { label: 'Incumplida', color: 'var(--danger)' }
+  // completed → depende del resultado del check-in
+  if (s.checkins && s.checkins.overall_passed === false) return { label: 'Fallida', color: 'var(--danger)' }
+  return { label: 'Completada', color: 'var(--success)' }
+}
 const SORPRESA_COLOR: Record<string, string> = {
   pending: 'var(--warning)',
   completed: 'var(--success)',
@@ -46,7 +55,7 @@ async function getCaso(id: string) {
       imputado:profiles!cases_imputado_id_fkey(full_name),
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at),
-      surprise_verifications(id, status, created_at, expires_at)
+      surprise_verifications(id, status, created_at, expires_at, checkins(overall_passed))
     `)
     .eq('id', id)
     .single()
@@ -228,9 +237,11 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                       {new Date(s.expires_at).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
                     </td>
                     <td style={{ padding: '14px 20px' }}>
-                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: (SORPRESA_COLOR[s.status] ?? 'var(--text-muted)') + '22', color: SORPRESA_COLOR[s.status] ?? 'var(--text-muted)' }}>
-                        {SORPRESA_LABEL[s.status] ?? s.status}
+                      {(() => { const r = sorpresaResult(s); return (
+                      <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, background: r.color + '22', color: r.color }}>
+                        {r.label}
                       </span>
+                      ) })()}
                     </td>
                   </tr>
                 ))}
