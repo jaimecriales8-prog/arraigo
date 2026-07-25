@@ -35,6 +35,8 @@ Detalle del caso con:
 - **Botón ⚡ Verificación sorpresa** — dispara notificación push al imputado con 15 min de plazo
 - **Mapa de ubicaciones** (`UbicacionMapa.tsx`, Leaflet + OpenStreetMap, sin API key) — geocerca del domicilio (círculo con el radio permitido) + cada check-in con GPS registrado como punto verde (dentro del radio) o rojo (fuera), con popup de fecha/distancia. Carga con `dynamic(..., {ssr:false})` vía `UbicacionMapaCliente.tsx` (esta versión de Next.js exige que el `ssr:false` viva en un Client Component).
 - **Ver fotos** (`FotosViewer.tsx`) — modal con selfie / escena capturada / foto de referencia, vía URLs firmadas de `GET /api/checkins/[id]/fotos`. Disponible en check-ins normales y en sorpresas (por el `checkin_id` enlazado en `surprise_verifications`).
+- **Excusar** (`ExcusarCheckin.tsx`, solo judicial/super_admin) — en check-ins `missed`/`failed`/`completed` fallido: modal con nota → pasa a `excused` y resuelve las alertas asociadas. Ya no cuenta como incumplimiento (estadísticas ni streak de escalamiento).
+- **Gestionar caso** (`EditarCaso.tsx`, solo judicial/super_admin) — cambiar estado (activo/suspendido/cerrado), horarios de check-in y radio del geofence, junto al bloque de reasignar técnico.
 - Historial de check-ins con scores de cara, escena y estado GPS (paginado)
 
 ### /dashboard/alertas
@@ -60,10 +62,16 @@ Cambia `technician_id` de un caso (rol judicial/super_admin, mismo org).
 ### GET /api/checkins/[id]/fotos
 Genera signed URLs (5 min TTL) para `face_photo_url`, `scene_photo_url` del checkin y `photo_url` del checkpoint de referencia (bucket privado `checkin-evidence`). Verifica que el checkin pertenezca a un caso de la organización del usuario (o `super_admin`). Normaliza paths viejos guardados como URL pública completa.
 
+### POST /api/checkins/excusar
+Marca un check-in (`missed`/`failed`/`completed` fallido) como `excused` con nota (rol judicial/super_admin, mismo org). Resuelve automáticamente las alertas con ese `checkin_id`.
+
+### POST /api/casos/editar
+Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM) y/o `geofence_radius_m` de un caso (rol judicial/super_admin, mismo org). Campos opcionales — solo se actualiza lo enviado.
+
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
-- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + mapa de ubicaciones + historial paginado (8/página) con botón "Ver fotos" + botón sorpresa.
+- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa.
 - **Alertas** (`/dashboard/alertas`) — alertas sin resolver, paginado (12/página).
 - **Usuarios** — crear usuario (oculto para operador).
 
@@ -76,9 +84,11 @@ Panel responsivo vía CSS en `globals.css` (media query 768px): barra lateral �
 - `CrearUsuarioForm.tsx` — crear usuario (muestra credenciales, no invitación)
 - `casos/nuevo/CrearCasoForm.tsx` — crear caso
 - `casos/[id]/ReasignarTecnico.tsx` — reasignar técnico
+- `casos/[id]/EditarCaso.tsx` — cambiar estado/horarios/radio del caso
 - `casos/[id]/UbicacionMapa.tsx` + `UbicacionMapaCliente.tsx` — mapa Leaflet de geocerca + check-ins
 - `casos/[id]/FotosViewer.tsx` — modal de evidencia fotográfica (selfie/escena/referencia)
-- `casos/[id]/HistorialTabla.tsx` — tabla paginada de check-ins/sorpresas, con acción de fotos
+- `casos/[id]/ExcusarCheckin.tsx` — modal para excusar una ausencia con nota
+- `casos/[id]/HistorialTabla.tsx` — tabla paginada de check-ins/sorpresas, con acciones de excusar/fotos
 
 ## Deploy
 **Root Directory `apps/web` ya configurado → auto-deploy en cada push a main.** Manual (respaldo): `npx vercel --prod` desde la raíz del repo (NO desde apps/web, o duplica la ruta).

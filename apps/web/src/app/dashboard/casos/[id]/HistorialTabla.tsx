@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import FotosViewer from './FotosViewer'
+import ExcusarCheckin from './ExcusarCheckin'
 
 type Row = {
   id: string
@@ -12,6 +13,9 @@ type Row = {
   has_photos?: boolean
   checkin_id?: string | null
 }
+
+const EXCUSABLE = (r: Row) =>
+  r.status === 'missed' || r.status === 'failed' || (r.status === 'completed' && r.overall_passed === false)
 
 function checkinResult(c: Row): { label: string; color: string } {
   if (c.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
@@ -38,7 +42,7 @@ const th = {
   color: 'var(--text-muted)', textTransform: 'uppercase' as const, letterSpacing: '0.05em',
 }
 
-export default function HistorialTabla({ kind, rows, perPage = 8 }: { kind: 'checkin' | 'surprise'; rows: Row[]; perPage?: number }) {
+export default function HistorialTabla({ kind, rows, perPage = 8, puedeGestionar = false }: { kind: 'checkin' | 'surprise'; rows: Row[]; perPage?: number; puedeGestionar?: boolean }) {
   const [page, setPage] = useState(0)
   const total = rows.length
   const pages = Math.max(1, Math.ceil(total / perPage))
@@ -75,10 +79,15 @@ export default function HistorialTabla({ kind, rows, perPage = 8 }: { kind: 'che
                     </span>
                   </td>
                   <td style={{ padding: '13px 20px', textAlign: 'right' }}>
-                    <FotosViewer
-                      checkinId={(kind === 'checkin' ? r.id : r.checkin_id) ?? ''}
-                      hasPhotos={Boolean(kind === 'checkin' ? r.has_photos : r.checkin_id && r.has_photos)}
-                    />
+                    <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                      {kind === 'checkin' && puedeGestionar && EXCUSABLE(r) && (
+                        <ExcusarCheckin checkinId={r.id} />
+                      )}
+                      <FotosViewer
+                        checkinId={(kind === 'checkin' ? r.id : r.checkin_id) ?? ''}
+                        hasPhotos={Boolean(kind === 'checkin' ? r.has_photos : r.checkin_id && r.has_photos)}
+                      />
+                    </div>
                   </td>
                 </tr>
               )

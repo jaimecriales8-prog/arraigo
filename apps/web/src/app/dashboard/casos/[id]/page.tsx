@@ -4,8 +4,13 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
 import ReasignarTecnico from './ReasignarTecnico'
+import EditarCaso from './EditarCaso'
 import HistorialTabla from './HistorialTabla'
 import UbicacionMapa from './UbicacionMapaCliente'
+
+const ESTADO_LABEL: Record<string, string> = {
+  onboarding: 'En configuración', active: 'Activo', suspended: 'Suspendido', closed: 'Cerrado', revoked: 'Revocado',
+}
 
 // Conteos para las estadísticas (un check-in completed con overall_passed=false es FALLIDO).
 const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
@@ -82,6 +87,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {[
               ['Expediente', caso.case_number],
+              ['Estado', ESTADO_LABEL[caso.status] ?? caso.status],
               ['Imputado', (caso.imputado as any)?.full_name ?? '—'],
               ['Técnico', (caso as any).tecnico?.full_name ?? 'Sin asignar'],
               ['Dirección', `${(caso as any).address ?? '—'}, ${(caso as any).city ?? ''}`],
@@ -103,6 +109,19 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                 caseId={caso.id}
                 tecnicos={(caso as any)._tecnicos}
                 current={(caso as any).technician_id ?? null}
+              />
+            </div>
+          )}
+          {(caso as any)._puedeReasignar && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Gestionar caso
+              </span>
+              <EditarCaso
+                caseId={caso.id}
+                currentStatus={caso.status}
+                currentTimes={(caso as any).checkin_times ?? []}
+                currentRadius={(caso as any).geofence_radius_m ?? 100}
               />
             </div>
           )}
@@ -152,10 +171,14 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)' }}>
           <h2 style={{ fontSize: 16, fontWeight: 600 }}>Historial de check-ins</h2>
         </div>
-        <HistorialTabla kind="checkin" rows={checkins.map((c: any) => ({
-          id: c.id, status: c.status, created_at: c.created_at, overall_passed: c.overall_passed,
-          has_photos: Boolean(c.face_photo_url || c.scene_photo_url),
-        }))} />
+        <HistorialTabla
+          kind="checkin"
+          puedeGestionar={(caso as any)._puedeReasignar}
+          rows={checkins.map((c: any) => ({
+            id: c.id, status: c.status, created_at: c.created_at, overall_passed: c.overall_passed,
+            has_photos: Boolean(c.face_photo_url || c.scene_photo_url),
+          }))}
+        />
       </div>
 
       {/* Verificaciones sorpresa */}
