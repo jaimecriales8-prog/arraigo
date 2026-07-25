@@ -12,6 +12,10 @@ Mapa Leaflet + OpenStreetMap en el detalle del caso: domicilio + geocerca (círc
 Modal con selfie / escena capturada / foto de referencia por check-in, vía signed URLs del bucket privado `checkin-evidence`. Verificación visual + evidencia con cadena de custodia.
 → `apps/web/src/app/api/checkins/[id]/fotos/route.ts`, `FotosViewer.tsx`
 
+### 6. Escalamiento de alertas (backend)
+Trigger en `checkins` que detecta 3 incumplimientos consecutivos (missed/failed/completed con overall_passed=false — `excused` no cuenta) y crea una alerta `escalation` con severidad crítica, visible de inmediato en `/dashboard/alertas`. **Decisión:** solo alerta en el panel por ahora — no hay proveedor de email/SMS configurado en el proyecto para notificar al juez fuera de él (se puede agregar después con Resend u otro si se define).
+→ `supabase/migrations/20260725_010_escalamiento_alertas.sql` (⚠️ pendiente de aplicar en el Dashboard de Supabase — no hay CLI linkeado en este entorno)
+
 ## 🔨 En progreso / próximo
 
 ### 3. Gestionar check-ins (panel + backend)
@@ -20,9 +24,6 @@ Modal con selfie / escena capturada / foto de referencia por check-in, vía sign
 
 ### 5. Dispositivo apagado / desinstalado / sin señal (app + backend)
 Hoy si el imputado apaga el teléfono o desinstala la app, no pasa nada — no hay heartbeat. Necesita: "última vez visto" + alerta si el dispositivo lleva X horas sin reportar. Apagar el teléfono no puede ser una forma gratis de evadir.
-
-### 6. Escalamiento de alertas (backend)
-Hoy cada incumplimiento genera una alerta suelta. Falta lógica de escalada: p. ej. 3 incumplimientos seguidos → alerta crítica + notificar al juez automáticamente.
 
 ### 7. Reporte de cumplimiento exportable (panel)
 Generar un PDF/informe por imputado (historial, % cumplimiento, incidentes) para anexar al expediente judicial.

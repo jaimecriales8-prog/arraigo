@@ -26,6 +26,7 @@ const TIPO: Record<string, string> = {
   scene_fail: 'Escena no coincide',
   missed: 'Verificación no realizada',
   surprise_missed: 'Sorpresa no atendida',
+  escalation: '🚨 Escalamiento — 3 incumplimientos seguidos',
 }
 
 function btn(disabled: boolean): React.CSSProperties {
