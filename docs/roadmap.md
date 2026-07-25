@@ -21,13 +21,14 @@ Trigger en `checkins` que detecta 3 incumplimientos consecutivos (missed/failed/
 - **Suspender / cerrar el caso, cambiar horarios o el radio** desde un bloque "Gestionar caso" en el detalle, junto a Reasignar técnico.
 → `apps/web/src/app/api/checkins/excusar/route.ts`, `apps/web/src/app/api/casos/editar/route.ts`, `ExcusarCheckin.tsx`, `EditarCaso.tsx`
 
+### 7. Reporte de cumplimiento exportable (panel)
+Botón "📄 Descargar reporte" en el detalle del caso → genera un PDF (vía `@react-pdf/renderer`, server-side) con info del caso, resumen de cumplimiento (% aprobados sobre check-ins no excusados), todos los incidentes (alertas) y el historial completo de check-ins con motivo de fallo/excusa. Para anexar al expediente judicial.
+→ `apps/web/src/app/api/casos/[id]/reporte/route.tsx`
+
 ## 🔨 En progreso / próximo
 
 ### 5. Dispositivo apagado / desinstalado / sin señal (app + backend)
 Hoy si el imputado apaga el teléfono o desinstala la app, no pasa nada — no hay heartbeat. Necesita: "última vez visto" + alerta si el dispositivo lleva X horas sin reportar. Apagar el teléfono no puede ser una forma gratis de evadir.
-
-### 7. Reporte de cumplimiento exportable (panel)
-Generar un PDF/informe por imputado (historial, % cumplimiento, incidentes) para anexar al expediente judicial.
 
 ## ⏸️ Diferido
 

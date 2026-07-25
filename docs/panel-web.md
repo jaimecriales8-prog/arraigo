@@ -7,6 +7,7 @@ https://arraigo-ten.vercel.app
 - Next.js (App Router) — `apps/web`
 - Supabase SSR para auth y data
 - Leaflet + react-leaflet (mapa de ubicaciones, tiles OpenStreetMap — sin API key)
+- @react-pdf/renderer (generación de PDF server-side para el reporte de cumplimiento)
 - Deploy: Vercel (proyecto `arraigo`, team `jaime-criales-projects`)
 
 ## Credenciales de acceso
@@ -33,6 +34,7 @@ Detalle del caso con:
 - Info del caso (expediente, imputado, frecuencia, ubicación, radio)
 - Estadísticas (total / aprobados / fallidos)
 - **Botón ⚡ Verificación sorpresa** — dispara notificación push al imputado con 15 min de plazo
+- **Botón 📄 Descargar reporte** — genera un PDF vía `GET /api/casos/[id]/reporte` con info del caso, resumen de cumplimiento, incidentes e historial completo, para anexar al expediente judicial
 - **Mapa de ubicaciones** (`UbicacionMapa.tsx`, Leaflet + OpenStreetMap, sin API key) — geocerca del domicilio (círculo con el radio permitido) + cada check-in con GPS registrado como punto verde (dentro del radio) o rojo (fuera), con popup de fecha/distancia. Carga con `dynamic(..., {ssr:false})` vía `UbicacionMapaCliente.tsx` (esta versión de Next.js exige que el `ssr:false` viva en un Client Component).
 - **Ver fotos** (`FotosViewer.tsx`) — modal con selfie / escena capturada / foto de referencia, vía URLs firmadas de `GET /api/checkins/[id]/fotos`. Disponible en check-ins normales y en sorpresas (por el `checkin_id` enlazado en `surprise_verifications`).
 - **Excusar** (`ExcusarCheckin.tsx`, solo judicial/super_admin) — en check-ins `missed`/`failed`/`completed` fallido: modal con nota → pasa a `excused` y resuelve las alertas asociadas. Ya no cuenta como incumplimiento (estadísticas ni streak de escalamiento).
@@ -68,10 +70,13 @@ Marca un check-in (`missed`/`failed`/`completed` fallido) como `excused` con not
 ### POST /api/casos/editar
 Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM) y/o `geofence_radius_m` de un caso (rol judicial/super_admin, mismo org). Campos opcionales — solo se actualiza lo enviado.
 
+### GET /api/casos/[id]/reporte
+Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, resumen de cumplimiento (aprobados / fallidos / excusados / % sobre check-ins no excusados), todas las alertas y el historial completo de check-ins con motivo. Requiere estar autenticado y ser de la misma organización (o `super_admin`). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
+
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
-- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa.
+- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF.
 - **Alertas** (`/dashboard/alertas`) — alertas sin resolver, paginado (12/página).
 - **Usuarios** — crear usuario (oculto para operador).
 

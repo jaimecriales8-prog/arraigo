@@ -73,10 +73,22 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div>
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <Link href="/dashboard/casos" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>
           ← Volver a casos
         </Link>
+        <a
+          href={`/api/casos/${caso.id}/reporte`}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)',
+            textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          📄 Descargar reporte
+        </a>
       </div>
 
       <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
