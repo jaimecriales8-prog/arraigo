@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { dangerColor, dangerLabel } from '@/lib/danger'
 
 type Persona = { id: string; full_name: string }
 
@@ -25,6 +26,7 @@ export default function CrearCasoForm({ imputados, tecnicos }: { imputados: Pers
     start_date: new Date().toISOString().slice(0, 10),
     geofence_radius_m: '100',
     checkin_times: '08:00, 14:00, 20:00',
+    danger_level: '3',
   })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -47,6 +49,7 @@ export default function CrearCasoForm({ imputados, tecnicos }: { imputados: Pers
       body: JSON.stringify({
         ...form,
         geofence_radius_m: Number(form.geofence_radius_m) || 100,
+        danger_level: Number(form.danger_level) || 3,
         checkin_times,
       }),
     })
@@ -141,6 +144,34 @@ export default function CrearCasoForm({ imputados, tecnicos }: { imputados: Pers
             <label style={labelStyle}>Horarios de verificación</label>
             <input value={form.checkin_times} onChange={e => set('checkin_times', e.target.value)} style={inputStyle} placeholder="08:00, 14:00, 20:00" />
           </div>
+        </div>
+
+        <div>
+          <label style={labelStyle}>Nivel de peligrosidad</label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {[1, 2, 3, 4, 5].map(n => {
+              const selected = Number(form.danger_level) === n
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => set('danger_level', String(n))}
+                  style={{
+                    flex: 1, padding: '10px 0', borderRadius: 8, fontSize: 14, fontWeight: 700,
+                    border: `2px solid ${selected ? dangerColor(n) : 'var(--border)'}`,
+                    background: selected ? dangerColor(n) + '22' : 'transparent',
+                    color: selected ? dangerColor(n) : 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {n}
+                </button>
+              )
+            })}
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 6 }}>
+            {dangerLabel(Number(form.danger_level))} — 1 menos peligroso, 5 más peligroso
+          </p>
         </div>
 
         {result && (

@@ -8,6 +8,7 @@ import ReasignarTecnico from './ReasignarTecnico'
 import EditarCaso from './EditarCaso'
 import HistorialTabla from './HistorialTabla'
 import UbicacionMapa from './UbicacionMapaCliente'
+import { dangerColor, dangerLabel } from '@/lib/danger'
 
 const ESTADO_LABEL: Record<string, string> = {
   onboarding: 'En configuración', active: 'Activo', suspended: 'Suspendido', closed: 'Cerrado', revoked: 'Revocado',
@@ -37,7 +38,7 @@ async function getCaso(id: string) {
   const { data: caso } = await supabase
     .from('cases')
     .select(`
-      id, case_number, status, checkin_times, geofence_radius_m, address, city, location,
+      id, case_number, status, checkin_times, geofence_radius_m, address, city, location, danger_level,
       technician_id, organization_id,
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name),
@@ -123,6 +124,20 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               </div>
             ))}
             {(() => {
+              const nivel = (caso as any).danger_level ?? 3
+              return (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 14 }}>
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>Nivel de peligrosidad</span>
+                  <span style={{
+                    fontWeight: 700, padding: '2px 10px', borderRadius: 20, fontSize: 12,
+                    background: dangerColor(nivel) + '22', color: dangerColor(nivel),
+                  }}>
+                    {nivel}/5 · {dangerLabel(nivel)}
+                  </span>
+                </div>
+              )
+            })()}
+            {(() => {
               const actividad = ultimaActividad((caso.imputado as any)?.last_seen_at)
               return (
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 14 }}>
@@ -154,6 +169,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                 currentStatus={caso.status}
                 currentTimes={(caso as any).checkin_times ?? []}
                 currentRadius={(caso as any).geofence_radius_m ?? 100}
+                currentDangerLevel={(caso as any).danger_level ?? 3}
               />
             </div>
           )}

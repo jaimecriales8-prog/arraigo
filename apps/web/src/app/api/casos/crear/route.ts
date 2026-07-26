@@ -17,7 +17,7 @@ export async function POST(req: Request) {
   const {
     imputado_id, technician_id, case_number, court, crime_description,
     address, city, department, start_date,
-    geofence_radius_m, checkin_times,
+    geofence_radius_m, checkin_times, danger_level,
   } = body
 
   if (!imputado_id || !case_number || !address || !city || !department) {
@@ -94,6 +94,13 @@ export async function POST(req: Request) {
   }
   if (geofence_radius_m) insert.geofence_radius_m = geofence_radius_m
   if (Array.isArray(checkin_times) && checkin_times.length) insert.checkin_times = checkin_times
+  if (danger_level != null) {
+    const nivel = Number(danger_level)
+    if (!Number.isInteger(nivel) || nivel < 1 || nivel > 5) {
+      return NextResponse.json({ error: 'Nivel de peligrosidad inválido (1-5)' }, { status: 400 })
+    }
+    insert.danger_level = nivel
+  }
 
   const { data: caso, error } = await supabase
     .from('cases')

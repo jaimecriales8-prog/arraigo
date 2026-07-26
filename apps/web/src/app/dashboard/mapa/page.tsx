@@ -16,7 +16,7 @@ async function getCasos() {
   const { data, error } = await supabase
     .from('cases')
     .select(`
-      id, case_number, status, department, city, location,
+      id, case_number, status, department, city, location, danger_level,
       imputado:profiles!cases_imputado_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at)
     `)
@@ -55,6 +55,7 @@ export default async function MapaPage() {
       department: c.department ?? '',
       city: c.city ?? '',
       imputado: c.imputado?.full_name ?? 'Sin nombre',
+      danger_level: c.danger_level ?? 3,
       lat: coords ? coords[1] : null,
       lng: coords ? coords[0] : null,
       cumplimiento,

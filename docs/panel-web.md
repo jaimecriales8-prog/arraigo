@@ -41,10 +41,14 @@ Detalle del caso con:
 - **Gestionar caso** (`EditarCaso.tsx`, solo judicial/super_admin) — cambiar estado (activo/suspendido/cerrado), horarios de check-in y radio del geofence, junto al bloque de reasignar técnico.
 - **Última actividad del dispositivo** — `profiles.last_seen_at` del imputado, coloreado (verde <4h, ámbar <12h, rojo >12h o "Sin reportar aún"). Ver heartbeat abajo.
 - **Mensajes al imputado** (`EnviarMensaje.tsx`) — botón "💬 Enviar mensaje" (texto libre, no exige verificación de presencia) + historial con estado leído/no leído. Ver mensajería abajo.
+- **Nivel de peligrosidad** — badge 1-5 (escala de color verde→rojo, ver `src/lib/danger.ts`), editable en "Gestionar caso".
 - Historial de check-ins con scores de cara, escena y estado GPS (paginado)
 
+### /dashboard/casos (filtros)
+Además de la tabla, filtro por nivel de peligrosidad + búsqueda por nombre/expediente, client-side sobre el dataset ya cargado (`CasosLista.tsx`).
+
 ### /dashboard/mapa
-Mapa Leaflet con todos los casos de la org (marcador coloreado por cumplimiento: verde al día, ámbar pendiente/sin check-ins, rojo en mora/fallido, gris inactivo). Filtros por departamento y municipio (el de municipio se acota al departamento elegido) + búsqueda por nombre de imputado o expediente, todo client-side sobre el dataset ya cargado. Popup por marcador con link al detalle del caso.
+Mapa Leaflet con todos los casos de la org (relleno del marcador = cumplimiento: verde al día, ámbar pendiente/sin check-ins, rojo en mora/fallido, gris inactivo; anillo = nivel de peligrosidad, radio también escala con el nivel). Filtros por departamento, municipio (acotado al departamento elegido) y nivel de peligrosidad + búsqueda por nombre/expediente, todo client-side. Popup por marcador con link al detalle del caso.
 → `apps/web/src/app/dashboard/mapa/page.tsx` (server, RLS filtra por org) + `MapaCasos.tsx`/`MapaCasosCliente.tsx`
 
 ### /dashboard/alertas
@@ -62,7 +66,7 @@ Todas las escrituras privilegiadas usan un cliente service-role **puro** (`creat
 Crea usuario en Auth + perfil. Rol requerido: `judicial`/`super_admin`. **No envía correo** — devuelve `{ email, temp_password }` para entregar (imputado se loguea en la app con eso). Rollback: si falla el perfil, borra el usuario auth (evita huérfanos que bloquean el email).
 
 ### POST /api/casos/crear
-Registra un caso (rol judicial/super_admin). Valida imputado de la misma org sin caso activo, y técnico opcional. El caso nace en `onboarding`.
+Registra un caso (rol judicial/super_admin). Valida imputado de la misma org sin caso activo, y técnico opcional. El caso nace en `onboarding`. Acepta `danger_level` (1-5, default 3 si se omite).
 
 ### POST /api/casos/reasignar-tecnico
 Cambia `technician_id` de un caso (rol judicial/super_admin, mismo org).
@@ -74,7 +78,7 @@ Genera signed URLs (5 min TTL) para `face_photo_url`, `scene_photo_url` del chec
 Marca un check-in (`missed`/`failed`/`completed` fallido) como `excused` con nota (rol judicial/super_admin, mismo org). Resuelve automáticamente las alertas con ese `checkin_id`.
 
 ### POST /api/casos/editar
-Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM) y/o `geofence_radius_m` de un caso (rol judicial/super_admin, mismo org). Campos opcionales — solo se actualiza lo enviado.
+Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM), `geofence_radius_m` y/o `danger_level` (1-5) de un caso (rol judicial/super_admin, mismo org). Campos opcionales — solo se actualiza lo enviado.
 
 ### GET /api/casos/[id]/reporte
 Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, resumen de cumplimiento (aprobados / fallidos / excusados / % sobre check-ins no excusados), todas las alertas y el historial completo de check-ins con motivo. Requiere estar autenticado y ser de la misma organización (o `super_admin`). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
@@ -82,8 +86,8 @@ Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, r
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
-- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF + mensajería.
-- **Mapa** (`/dashboard/mapa`) — todos los casos en un mapa, filtro depto/municipio + búsqueda por nombre/expediente.
+- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio/peligrosidad) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF + mensajería.
+- **Mapa** (`/dashboard/mapa`) — todos los casos en un mapa, filtro depto/municipio/peligrosidad + búsqueda por nombre/expediente.
 - **Alertas** (`/dashboard/alertas`) — alertas sin resolver, paginado (12/página).
 - **Usuarios** — crear usuario (oculto para operador).
 
@@ -101,6 +105,8 @@ Panel responsivo vía CSS en `globals.css` (media query 768px): barra lateral �
 - `casos/[id]/FotosViewer.tsx` — modal de evidencia fotográfica (selfie/escena/referencia)
 - `casos/[id]/ExcusarCheckin.tsx` — modal para excusar una ausencia con nota
 - `casos/[id]/HistorialTabla.tsx` — tabla paginada de check-ins/sorpresas, con acciones de excusar/fotos
+- `casos/CasosLista.tsx` — tabla de casos con filtro por peligrosidad + búsqueda
+- `lib/danger.ts` — escala de color/etiqueta para nivel de peligrosidad (1-5), reutilizada en lista, mapa, detalle y reporte PDF
 
 ## Heartbeat de dispositivo (2026-07-25)
 `profiles.last_seen_at` se actualiza desde dos fuentes: la app móvil en foreground (`useHeartbeat`, cada 15 min + al abrir/reactivar) y `process-checkin` server-side en cada verificación (señal más confiable). Un cron cada 30 min (`check_device_silence()`) crea alerta crítica `device_silent` si un imputado con caso activo lleva >12h sin reportar, con dedup para no repetir mientras la ventana de silencio siga vigente. **Limitación:** no hay tarea en segundo plano — apagar el teléfono o forzar cierre de la app deja de generar señal (justo lo que se detecta), pero tampoco hay forma de refrescar `last_seen_at` mientras eso ocurre. Ver `supabase/migrations/20260725_011_heartbeat_dispositivo.sql`.

@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
+import { dangerColor, dangerLabel } from '@/lib/danger'
 
 type Caso = {
   id: string
@@ -11,6 +12,7 @@ type Caso = {
   department: string
   city: string
   imputado: string
+  danger_level: number
   lat: number | null
   lng: number | null
   cumplimiento: { label: string; color: string }
@@ -22,6 +24,7 @@ const CENTRO_COLOMBIA: [number, number] = [4.5709, -74.2973]
 export default function MapaCasos({ casos }: { casos: Caso[] }) {
   const [departamento, setDepartamento] = useState('')
   const [municipio, setMunicipio] = useState('')
+  const [nivel, setNivel] = useState('')
   const [busqueda, setBusqueda] = useState('')
 
   const departamentos = useMemo(
@@ -40,10 +43,11 @@ export default function MapaCasos({ casos }: { casos: Caso[] }) {
     return casos.filter(c => {
       if (departamento && c.department !== departamento) return false
       if (municipio && c.city !== municipio) return false
+      if (nivel && String(c.danger_level) !== nivel) return false
       if (q && !c.imputado.toLowerCase().includes(q) && !c.case_number.toLowerCase().includes(q)) return false
       return true
     })
-  }, [casos, departamento, municipio, busqueda])
+  }, [casos, departamento, municipio, nivel, busqueda])
 
   const conUbicacion = filtrados.filter(c => c.lat != null && c.lng != null)
   const center: [number, number] = conUbicacion.length > 0
@@ -69,6 +73,10 @@ export default function MapaCasos({ casos }: { casos: Caso[] }) {
           <option value="">Todos los municipios</option>
           {municipios.map(m => <option key={m} value={m}>{m}</option>)}
         </select>
+        <select value={nivel} onChange={(e) => setNivel(e.target.value)} style={selectStyle}>
+          <option value="">Todos los niveles de peligrosidad</option>
+          {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} · {dangerLabel(n)}</option>)}
+        </select>
         <input
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
@@ -87,16 +95,18 @@ export default function MapaCasos({ casos }: { casos: Caso[] }) {
             <CircleMarker
               key={c.id}
               center={[c.lat!, c.lng!]}
-              radius={8}
-              pathOptions={{ color: '#fff', fillColor: c.cumplimiento.color, fillOpacity: 0.9, weight: 2 }}
+              radius={6 + c.danger_level * 1.4}
+              pathOptions={{ color: dangerColor(c.danger_level), fillColor: c.cumplimiento.color, fillOpacity: 0.85, weight: 3 }}
             >
-              <Tooltip direction="top" offset={[0, -8]}>{c.imputado}</Tooltip>
+              <Tooltip direction="top" offset={[0, -8]}>{c.imputado} · peligrosidad {c.danger_level}/5</Tooltip>
               <Popup>
                 <div style={{ fontSize: 13, minWidth: 160 }}>
                   <strong>{c.imputado}</strong><br />
                   Exp. {c.case_number}<br />
                   {c.city}, {c.department}<br />
-                  <span style={{ color: c.cumplimiento.color, fontWeight: 600 }}>{c.cumplimiento.label}</span><br />
+                  <span style={{ color: c.cumplimiento.color, fontWeight: 600 }}>{c.cumplimiento.label}</span>
+                  {' · '}
+                  <span style={{ color: dangerColor(c.danger_level), fontWeight: 600 }}>Peligrosidad {c.danger_level}/5</span><br />
                   <Link href={`/dashboard/casos/${c.id}`} style={{ color: '#2563eb' }}>Ver caso →</Link>
                 </div>
               </Popup>
@@ -107,6 +117,7 @@ export default function MapaCasos({ casos }: { casos: Caso[] }) {
 
       <div style={{ display: 'flex', gap: 20, padding: '12px 4px', fontSize: 12, color: 'var(--text-muted)', flexWrap: 'wrap' }}>
         <span>{filtrados.length} caso{filtrados.length !== 1 ? 's' : ''} filtrado{filtrados.length !== 1 ? 's' : ''}</span>
+        <span>Anillo = nivel de peligrosidad · relleno = estado de cumplimiento</span>
         {filtrados.length !== conUbicacion.length && (
           <span>({filtrados.length - conUbicacion.length} sin ubicación registrada, no aparece{filtrados.length - conUbicacion.length !== 1 ? 'n' : ''} en el mapa)</span>
         )}

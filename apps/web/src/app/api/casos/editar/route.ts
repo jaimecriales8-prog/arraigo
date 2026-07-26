@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     { auth: { persistSession: false } }
   )
 
-  const { case_id, status, checkin_times, geofence_radius_m } = await req.json()
+  const { case_id, status, checkin_times, geofence_radius_m, danger_level } = await req.json()
   if (!case_id) return NextResponse.json({ error: 'Falta case_id' }, { status: 400 })
 
   const anonClient = createServerClient(
@@ -60,6 +60,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Radio inválido (10-5000m)' }, { status: 400 })
     }
     updates.geofence_radius_m = radius
+  }
+
+  if (danger_level !== undefined) {
+    const nivel = Number(danger_level)
+    if (!Number.isInteger(nivel) || nivel < 1 || nivel > 5) {
+      return NextResponse.json({ error: 'Nivel de peligrosidad inválido (1-5)' }, { status: 400 })
+    }
+    updates.danger_level = nivel
   }
 
   if (Object.keys(updates).length === 0) {

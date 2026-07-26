@@ -1,6 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { dangerColor, dangerLabel } from '@/lib/danger'
 
 const ESTADOS: Record<string, string> = {
   active: 'Activo',
@@ -9,17 +10,18 @@ const ESTADOS: Record<string, string> = {
 }
 
 export default function EditarCaso({
-  caseId, currentStatus, currentTimes, currentRadius,
-}: { caseId: string; currentStatus: string; currentTimes: string[]; currentRadius: number }) {
+  caseId, currentStatus, currentTimes, currentRadius, currentDangerLevel,
+}: { caseId: string; currentStatus: string; currentTimes: string[]; currentRadius: number; currentDangerLevel: number }) {
   const router = useRouter()
   const [status, setStatus] = useState(currentStatus)
   const [times, setTimes] = useState(currentTimes.join(', '))
   const [radius, setRadius] = useState(String(currentRadius))
+  const [dangerLevel, setDangerLevel] = useState(currentDangerLevel)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   const timesArray = times.split(',').map(t => t.trim()).filter(Boolean)
-  const changed = status !== currentStatus || times !== currentTimes.join(', ') || radius !== String(currentRadius)
+  const changed = status !== currentStatus || times !== currentTimes.join(', ') || radius !== String(currentRadius) || dangerLevel !== currentDangerLevel
 
   async function guardar() {
     setSaving(true)
@@ -32,6 +34,7 @@ export default function EditarCaso({
         status,
         checkin_times: timesArray,
         geofence_radius_m: Number(radius),
+        danger_level: dangerLevel,
       }),
     })
     const data = await res.json()
@@ -64,6 +67,31 @@ export default function EditarCaso({
       <div>
         <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Radio permitido (metros)</label>
         <input type="number" min={10} max={5000} value={radius} onChange={e => setRadius(e.target.value)} style={inputStyle} />
+      </div>
+      <div>
+        <label style={{ fontSize: 12, color: 'var(--text-muted)', display: 'block', marginBottom: 4 }}>Nivel de peligrosidad</label>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[1, 2, 3, 4, 5].map(n => {
+            const selected = dangerLevel === n
+            return (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setDangerLevel(n)}
+                style={{
+                  flex: 1, padding: '8px 0', borderRadius: 8, fontSize: 13, fontWeight: 700,
+                  border: `2px solid ${selected ? dangerColor(n) : 'var(--border)'}`,
+                  background: selected ? dangerColor(n) + '22' : 'transparent',
+                  color: selected ? dangerColor(n) : 'var(--text-muted)',
+                  cursor: 'pointer',
+                }}
+              >
+                {n}
+              </button>
+            )
+          })}
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>{dangerLabel(dangerLevel)}</p>
       </div>
       <button
         onClick={guardar}

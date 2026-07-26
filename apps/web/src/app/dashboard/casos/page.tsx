@@ -1,19 +1,9 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
+import CasosLista from './CasosLista'
 
 export const dynamic = 'force-dynamic'
-
-const STATUS_LABEL: Record<string, string> = {
-  active: 'Activo',
-  suspended: 'Suspendido',
-  closed: 'Cerrado',
-}
-const STATUS_COLOR: Record<string, string> = {
-  active: 'var(--success)',
-  suspended: 'var(--warning)',
-  closed: 'var(--text-muted)',
-}
 
 async function getCasos() {
   const cookieStore = await cookies()
@@ -31,7 +21,7 @@ async function getCasos() {
 
   const { data, error } = await supabase
     .from('cases')
-    .select('id, case_number, status, checkin_times, address, city, imputado:profiles!cases_imputado_id_fkey(full_name), checkins(id,status,overall_passed,created_at)')
+    .select('id, case_number, status, danger_level, checkin_times, address, city, imputado:profiles!cases_imputado_id_fkey(full_name), checkins(id,status,overall_passed,created_at)')
     .order('created_at', { ascending: false })
 
   if (error) console.error('[casos] error:', error.message)
@@ -39,8 +29,38 @@ async function getCasos() {
 }
 
 export default async function CasosPage() {
-  const { casos, role } = await getCasos()
+  const { casos: casosRaw, role } = await getCasos()
   const puedeCrear = ['judicial', 'super_admin'].includes(role)
+
+  const casos = casosRaw.map((c: any) => {
+    const checkins = c.checkins ?? []
+    const ultimo = checkins
+      .slice()
+      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null
+
+    const cumplimiento = (() => {
+      if (c.status !== 'active') return null
+      if (!ultimo) return { label: 'Sin check-ins', color: 'var(--warning)' }
+      const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+      const ultimoDate = new Date(ultimo.created_at)
+      const aprobado = (ultimo.status === 'completed' || ultimo.status === 'passed') && ultimo.overall_passed
+      if (ultimoDate >= hace24h && aprobado) return { label: 'Al día', color: 'var(--success)' }
+      if (ultimoDate >= hace24h && ultimo.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
+      if (ultimoDate >= hace24h) return { label: 'Verificación fallida', color: 'var(--danger)' }
+      return { label: 'En mora', color: 'var(--danger)' }
+    })()
+
+    return {
+      id: c.id,
+      case_number: c.case_number,
+      status: c.status,
+      danger_level: c.danger_level ?? 3,
+      imputado: c.imputado?.full_name ?? '—',
+      checkinsCount: checkins.length,
+      ultimo,
+      cumplimiento,
+    }
+  })
 
   return (
     <div>
@@ -61,107 +81,7 @@ export default async function CasosPage() {
         )}
       </div>
 
-      <div className="table-scroll" style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
-              {['Expediente', 'Imputado', 'Estado', 'Cumplimiento', 'Check-ins', 'Último check-in', 'Acciones'].map(h => (
-                <th key={h} style={{
-                  padding: '14px 20px', textAlign: 'left',
-                  fontSize: 12, fontWeight: 600,
-                  color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em',
-                }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {casos.length === 0 && (
-              <tr>
-                <td colSpan={6} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
-                  No hay casos registrados aún.
-                </td>
-              </tr>
-            )}
-            {casos.map((caso: any, i: number) => {
-              const checkins = caso.checkins ?? []
-              const ultimo = checkins
-                .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
-
-              // Calcular cumplimiento: ver si el checkin más reciente fue dentro de las últimas 24h
-              const cumplimiento = (() => {
-                if (caso.status !== 'active') return null
-                if (!ultimo) return { label: 'Sin check-ins', color: 'var(--warning)' }
-                const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
-                const ultimoDate = new Date(ultimo.created_at)
-                const aprobado = (ultimo.status === 'completed' || ultimo.status === 'passed') && ultimo.overall_passed
-                if (ultimoDate >= hace24h && aprobado) return { label: 'Al día', color: 'var(--success)' }
-                if (ultimoDate >= hace24h && ultimo.status === 'pending') return { label: 'Pendiente', color: 'var(--warning)' }
-                if (ultimoDate >= hace24h) return { label: 'Verificación fallida', color: 'var(--danger)' }
-                return { label: 'En mora', color: 'var(--danger)' }
-              })()
-
-              return (
-                <tr key={caso.id} style={{
-                  borderBottom: i < casos.length - 1 ? '1px solid var(--border)' : 'none',
-                  transition: 'background 0.15s',
-                }}>
-                  <td style={{ padding: '16px 20px', fontFamily: 'monospace', fontSize: 13 }}>
-                    {caso.case_number}
-                  </td>
-                  <td style={{ padding: '16px 20px', fontSize: 14, fontWeight: 500 }}>
-                    {caso.imputado?.full_name ?? '—'}
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <span style={{
-                      padding: '4px 10px',
-                      borderRadius: 20,
-                      fontSize: 12,
-                      fontWeight: 600,
-                      background: STATUS_COLOR[caso.status] + '22',
-                      color: STATUS_COLOR[caso.status],
-                    }}>
-                      {STATUS_LABEL[caso.status] ?? caso.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    {cumplimiento ? (
-                      <span style={{
-                        padding: '4px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                        background: cumplimiento.color + '22', color: cumplimiento.color,
-                      }}>{cumplimiento.label}</span>
-                    ) : '—'}
-                  </td>
-                  <td style={{ padding: '16px 20px', fontSize: 14, color: 'var(--text-muted)' }}>
-                    {checkins.length}
-                  </td>
-                  <td style={{ padding: '16px 20px', fontSize: 13, color: 'var(--text-muted)' }}>
-                    {ultimo ? new Date(ultimo.created_at).toLocaleString('es-CO', {
-                      day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'
-                    }) : '—'}
-                  </td>
-                  <td style={{ padding: '16px 20px' }}>
-                    <Link href={`/dashboard/casos/${caso.id}`} style={{
-                      padding: '6px 14px',
-                      background: 'var(--bg-card2)',
-                      border: '1px solid var(--border)',
-                      borderRadius: 6,
-                      color: 'var(--text)',
-                      fontSize: 13,
-                      textDecoration: 'none',
-                    }}>
-                      Ver →
-                    </Link>
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
+      <CasosLista casos={casos} />
     </div>
   )
 }

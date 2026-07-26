@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { Document, Page, Text, View, StyleSheet, renderToBuffer, Font } from '@react-pdf/renderer'
+import { dangerLabel } from '@/lib/danger'
 
 export const runtime = 'nodejs'
 
@@ -69,6 +70,7 @@ function ReporteDocument({ caso, checkins, alertas, stats }: any) {
           ['Técnico asignado', caso.tecnico_nombre ?? 'Sin asignar'],
           ['Dirección', `${caso.address ?? '—'}, ${caso.city ?? ''}`],
           ['Estado del caso', ESTADO_LABEL[caso.status] ?? caso.status],
+          ['Nivel de peligrosidad', `${caso.danger_level ?? 3}/5 · ${dangerLabel(caso.danger_level ?? 3)}`],
           ['Horarios de verificación', (caso.checkin_times ?? []).join(' · ') || '—'],
           ['Radio permitido', `${caso.geofence_radius_m ?? '—'} metros`],
           ['Fecha de inicio', caso.start_date ? fmt(caso.start_date) : '—'],
@@ -159,7 +161,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
   const { data: caso } = await supabase
     .from('cases')
     .select(`
-      id, case_number, status, checkin_times, geofence_radius_m, address, city, start_date, organization_id,
+      id, case_number, status, danger_level, checkin_times, geofence_radius_m, address, city, start_date, organization_id,
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name)
     `)
