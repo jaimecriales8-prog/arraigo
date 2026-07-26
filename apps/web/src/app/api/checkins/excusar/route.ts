@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { logAudit } from '@/lib/auditLog'
 
 // Estados que representan un incumplimiento excusable. Un check-in 'completed'
 // con overall_passed=true no necesita excusa.
@@ -72,6 +73,17 @@ export async function POST(req: Request) {
     })
     .eq('checkin_id', checkin_id)
     .eq('is_resolved', false)
+
+  await logAudit(supabase, {
+    organizationId: caseOrgId!,
+    caseId: checkin.case_id,
+    actorId: user.id,
+    actorRole: me.role,
+    action: 'checkin.excused',
+    entityType: 'checkin',
+    entityId: checkin_id,
+    payload: { reason: reason.trim(), previous_status: checkin.status },
+  })
 
   return NextResponse.json({ success: true })
 }

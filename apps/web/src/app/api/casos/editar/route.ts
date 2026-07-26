@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { logAudit } from '@/lib/auditLog'
 
 const ALLOWED_STATUS = ['active', 'suspended', 'closed']
 const HHMM = /^([01]\d|2[0-3]):([0-5]\d)$/
@@ -76,6 +77,17 @@ export async function POST(req: Request) {
 
   const { error } = await supabase.from('cases').update(updates).eq('id', case_id)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await logAudit(supabase, {
+    organizationId: caso.organization_id,
+    caseId: case_id,
+    actorId: user.id,
+    actorRole: me.role,
+    action: 'case.updated',
+    entityType: 'case',
+    entityId: case_id,
+    payload: updates,
+  })
 
   return NextResponse.json({ success: true })
 }

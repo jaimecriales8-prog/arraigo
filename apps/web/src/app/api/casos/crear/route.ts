@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { logAudit } from '@/lib/auditLog'
 
 export async function POST(req: Request) {
   const cookieStore = await cookies()
@@ -109,6 +110,17 @@ export async function POST(req: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  await logAudit(supabase, {
+    organizationId: currentProfile.organization_id,
+    caseId: caso.id,
+    actorId: currentUser.id,
+    actorRole: currentProfile.role,
+    action: 'case.created',
+    entityType: 'case',
+    entityId: caso.id,
+    payload: { case_number, imputado_id, technician_id: technician_id || null },
+  })
 
   return NextResponse.json({ success: true, case_id: caso.id })
 }

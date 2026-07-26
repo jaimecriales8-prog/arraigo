@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import CrearUsuarioForm from './CrearUsuarioForm'
+import RestablecerPassword from './RestablecerPassword'
 
 const ROL_LABEL: Record<string, string> = {
   admin: 'Administrador',
@@ -71,11 +72,11 @@ export default async function UsuariosPage() {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 24, alignItems: 'start' }}>
         {/* Lista */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }} className="table-scroll">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                {['Nombre', 'Correo', 'Rol', 'Creado'].map(h => (
+                {['Nombre', 'Correo', 'Rol', 'Creado', 'Acciones'].map(h => (
                   <th key={h} style={{
                     padding: '14px 20px', textAlign: 'left',
                     fontSize: 12, fontWeight: 600, color: 'var(--text-muted)',
@@ -86,7 +87,7 @@ export default async function UsuariosPage() {
             </thead>
             <tbody>
               {usuarios.length === 0 && (
-                <tr><td colSpan={4} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
+                <tr><td colSpan={5} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>
                   No hay usuarios aún. Crea el primero.
                 </td></tr>
               )}
@@ -105,6 +106,9 @@ export default async function UsuariosPage() {
                   </td>
                   <td style={{ padding: '14px 20px', fontSize: 12, color: 'var(--text-muted)' }}>
                     {new Date(u.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td style={{ padding: '14px 20px' }}>
+                    <RestablecerPassword profileId={u.id} nombre={u.full_name} compact />
                   </td>
                 </tr>
               ))}

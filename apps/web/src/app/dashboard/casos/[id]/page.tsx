@@ -8,6 +8,7 @@ import ReasignarTecnico from './ReasignarTecnico'
 import EditarCaso from './EditarCaso'
 import HistorialTabla from './HistorialTabla'
 import DescargarReporte from './DescargarReporte'
+import RestablecerPassword from '../../usuarios/RestablecerPassword'
 import UbicacionMapa from './UbicacionMapaCliente'
 import { dangerColor, dangerLabel } from '@/lib/danger'
 
@@ -40,7 +41,7 @@ async function getCaso(id: string) {
     .from('cases')
     .select(`
       id, case_number, status, checkin_times, geofence_radius_m, address, city, location, danger_level,
-      technician_id, organization_id,
+      technician_id, organization_id, imputado_id,
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
@@ -161,6 +162,14 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                 currentRadius={(caso as any).geofence_radius_m ?? 100}
                 currentDangerLevel={(caso as any).danger_level ?? 3}
               />
+            </div>
+          )}
+          {(caso as any)._puedeReasignar && (caso as any).imputado_id && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
+                Acceso del imputado
+              </span>
+              <RestablecerPassword profileId={(caso as any).imputado_id} nombre={(caso.imputado as any)?.full_name ?? 'el imputado'} />
             </div>
           )}
         </div>

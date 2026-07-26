@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
+import { logAudit } from '@/lib/auditLog'
 
 export async function POST(req: Request) {
   const cookieStore = await cookies()
@@ -73,6 +74,16 @@ export async function POST(req: Request) {
     await supabase.auth.admin.deleteUser(newUser.user.id)
     return NextResponse.json({ error: profileError.message }, { status: 500 })
   }
+
+  await logAudit(supabase, {
+    organizationId: currentProfile.organization_id,
+    actorId: currentUser.id,
+    actorRole: currentProfile.role,
+    action: 'user.created',
+    entityType: 'profile',
+    entityId: newUser.user.id,
+    payload: { full_name, email, role },
+  })
 
   // Se devuelven las credenciales para entregarlas (no se envía email de invitación).
   // El imputado se loguea en la app con esto durante el onboarding del técnico.

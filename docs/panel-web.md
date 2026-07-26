@@ -58,14 +58,26 @@ Alertas sin resolver agrupadas por caso, con los casos con más alertas primero 
 
 ### /dashboard/usuarios
 Módulo de gestión de usuarios de la organización:
-- Lista de usuarios (admin, judicial, técnico)
-- Formulario para crear nuevos usuarios → envía email de invitación vía Supabase Auth
+- Lista de usuarios (admin, judicial, técnico) con botón **🔑 Restablecer** por fila (`RestablecerPassword.tsx`) — genera una contraseña temporal nueva y la muestra en un modal para entregarla por un canal seguro (no se envía por correo, no hay SMTP configurado).
+- Formulario para crear nuevos usuarios → **no envía correo**, devuelve `{ email, temp_password }` para entregar manualmente.
+
+### /dashboard/auditoria
+Cadena de custodia de acciones del staff (rol judicial/operador/super_admin) — casos creados/editados, técnico reasignado, check-ins excusados, usuarios creados, contraseñas restablecidas, alertas resueltas. Filtro por tipo de acción + búsqueda por funcionario/expediente, paginado (15/página). Cada fila: fecha, acción, funcionario (+ rol), caso (link), detalle específico de la acción.
+→ `apps/web/src/app/dashboard/auditoria/page.tsx`, `AuditoriaLista.tsx`, tabla `audit_log` (ya existía en el esquema original, solo faltaba escribir en ella — ver `apps/web/src/lib/auditLog.ts`).
 
 ## API Routes
 Todas las escrituras privilegiadas usan un cliente service-role **puro** (`createClient` sin cookies). OJO: `createServerClient` con cookies adjunta el JWT del usuario y RLS aplica como él → causaba "new row violates RLS policy".
 
+Las rutas que modifican datos (crear/editar caso, reasignar técnico, excusar check-in, crear usuario, restablecer contraseña, resolver alerta) registran un evento en `audit_log` vía `logAudit()` (`apps/web/src/lib/auditLog.ts`) — visible en `/dashboard/auditoria`.
+
 ### POST /api/usuarios/crear
 Crea usuario en Auth + perfil. Rol requerido: `judicial`/`super_admin`. **No envía correo** — devuelve `{ email, temp_password }` para entregar (imputado se loguea en la app con eso). Rollback: si falla el perfil, borra el usuario auth (evita huérfanos que bloquean el email).
+
+### POST /api/usuarios/restablecer-password
+Genera una contraseña temporal nueva para un usuario existente (`supabase.auth.admin.updateUserById`) y la devuelve en `{ email, temp_password }` para entregarla manualmente — mismo patrón que la creación de usuarios, sin envío de correo. Rol requerido: `judicial`/`super_admin`, mismo org (o cualquiera si `super_admin`). Usado tanto en `/dashboard/usuarios` (staff) como en el detalle del caso, sección "Acceso del imputado".
+
+### POST /api/alertas/resolver
+Marca una alerta como resuelta (antes se hacía directo desde el cliente con `createBrowserClient`, sin auditoría posible por RLS). Rol requerido: `judicial`/`operador`/`super_admin`, mismo org (o cualquiera si `super_admin`).
 
 ### POST /api/casos/crear
 Registra un caso (rol judicial/super_admin). Valida imputado de la misma org sin caso activo, y técnico opcional. El caso nace en `onboarding`. Acepta `danger_level` (1-5, default 3 si se omite).
@@ -91,10 +103,11 @@ Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con métricas agrega
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
-- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio/peligrosidad) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF + mensajería.
+- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio/peligrosidad) + restablecer contraseña del imputado + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF + mensajería.
 - **Mapa** (`/dashboard/mapa`) — todos los casos en un mapa, filtro depto/municipio/peligrosidad + búsqueda por nombre/expediente.
 - **Alertas** (`/dashboard/alertas`) — alertas sin resolver agrupadas por caso (más alertas primero), paginado por caso (8/página).
-- **Usuarios** — crear usuario (oculto para operador).
+- **Usuarios** — crear usuario + restablecer contraseña (oculto para operador).
+- **Auditoría** (`/dashboard/auditoria`, oculto para técnico) — cadena de custodia de acciones del staff.
 
 ## Responsive móvil (2026-07-12)
 Panel responsivo vía CSS en `globals.css` (media query 768px): barra lateral → barra superior horizontal, tablas anchas con `.table-scroll`, rejillas se apilan. Nav filtra "Usuarios" para operador. Verificado a 375px. Estilos inline no permiten media queries → se usan clases (`app-shell`, `dash-sidebar`, `dash-nav`, `table-scroll`, `detail-grid`).
