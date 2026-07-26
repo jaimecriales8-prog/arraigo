@@ -34,7 +34,7 @@ Detalle del caso con:
 - Info del caso (expediente, imputado, frecuencia, ubicación, radio)
 - Estadísticas (total / aprobados / fallidos)
 - **Botón ⚡ Verificación sorpresa** — dispara notificación push al imputado con 15 min de plazo
-- **Botón 📄 Descargar reporte** — genera un PDF vía `GET /api/casos/[id]/reporte` con info del caso, resumen de cumplimiento, incidentes e historial completo, para anexar al expediente judicial
+- **Botón 📄 Descargar reporte** — genera un PDF vía `GET /api/casos/[id]/reporte` con info del caso, resumen de cumplimiento, incidentes e historial completo, para anexar al expediente judicial. **Pendiente:** elegir rango (día/semana/mes) antes de generarlo — ver `docs/roadmap.md`.
 - **Mapa de ubicaciones** (`UbicacionMapa.tsx`, Leaflet + OpenStreetMap, sin API key) — geocerca del domicilio (círculo con el radio permitido) + cada check-in con GPS registrado como punto verde (dentro del radio) o rojo (fuera), con popup de fecha/distancia. Carga con `dynamic(..., {ssr:false})` vía `UbicacionMapaCliente.tsx` (esta versión de Next.js exige que el `ssr:false` viva en un Client Component).
 - **Ver fotos** (`FotosViewer.tsx`) — modal con selfie / escena capturada / foto de referencia, vía URLs firmadas de `GET /api/checkins/[id]/fotos`. Disponible en check-ins normales y en sorpresas (por el `checkin_id` enlazado en `surprise_verifications`).
 - **Excusar** (`ExcusarCheckin.tsx`, solo judicial/super_admin) — en check-ins `missed`/`failed`/`completed` fallido: modal con nota → pasa a `excused` y resuelve las alertas asociadas. Ya no cuenta como incumplimiento (estadísticas ni streak de escalamiento).

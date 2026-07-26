@@ -35,6 +35,16 @@ Tabla `case_messages` (texto libre, no requiere verificación de presencia — p
 → `supabase/migrations/20260725_012_mensajeria_preso.sql`, `supabase/functions/send-message/index.ts`, `apps/web/src/components/EnviarMensaje.tsx`, `apps/mobile/app/(imputado)/home.tsx`
 **Nota:** requiere el build de TestFlight con el heartbeat (punto 5) para que la app reciba/marque mensajes — mismo ciclo de compilación, se agrupó en el mismo build.
 
+### 8. Alertas agrupadas por caso (panel)
+`/dashboard/alertas` ya no es una lista plana: agrupa las alertas sin resolver por caso, con los casos con más alertas primero (empate → alerta más reciente). Cada grupo es un bloque plegable (expediente, imputado, contador, criticidad, link al caso) con las alertas dentro; grupos de más de 3 alertas empiezan colapsados y dentro de un grupo se muestran las primeras 5 con "Mostrar N más". Paginado por caso (8/página).
+→ `apps/web/src/app/dashboard/alertas/AlertasLista.tsx`
+
+## 🔨 Pendiente
+
+### Reporte PDF por rango de fechas (panel)
+El botón "📄 Descargar reporte" hoy genera el PDF con el historial completo del caso. Falta poder elegir el periodo (día, semana, mes) antes de generarlo, para reportes más cortos y enfocados sin tener que filtrar el PDF completo a mano.
+→ `apps/web/src/app/api/casos/[id]/reporte/route.tsx` (agregar parámetros de rango de fecha a la query + selector en el botón del detalle del caso)
+
 ## ⏸️ Diferido
 
-_(vacío — todos los puntos del backlog original quedaron resueltos)_
+_(vacío)_
