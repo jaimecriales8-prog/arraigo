@@ -24,6 +24,8 @@ Resumen operativo con 3 tarjetas:
 - Check-ins del día
 - Alertas pendientes (checkins fallidos)
 
+**Reporte consolidado** (`DescargarConsolidado.tsx`) — selector de periodo (todo / último día / último mes / último año) + botón que genera un PDF vía `GET /api/reportes/consolidado?rango=...` con métricas agregadas de toda la organización (casos totales/activos, check-ins del periodo, aprobados/fallidos, % cumplimiento, alertas críticas/sin resolver) y una tabla con todos los casos (expediente, imputado, ubicación, peligrosidad, estado, check-ins, cumplimiento). No incluye el detalle de cada verificación — para eso está el reporte por caso.
+
 ### /dashboard/casos
 Tabla de todos los casos con:
 - Expediente, imputado, estado, total check-ins, último check-in
@@ -82,6 +84,9 @@ Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM), `ge
 
 ### GET /api/casos/[id]/reporte
 Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, resumen de cumplimiento (aprobados / fallidos / excusados / % sobre check-ins no excusados), todas las alertas y el historial de check-ins con motivo. Query param `rango` (`all` default, `day`/`week`/`month`) filtra check-ins y alertas por `created_at`; el periodo elegido queda impreso en el encabezado del PDF. Requiere estar autenticado y ser de la misma organización (o `super_admin`). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
+
+### GET /api/reportes/consolidado
+Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con métricas agregadas de todos los casos de la organización (o de todas si `super_admin`) y una tabla resumen por caso — sin el detalle check-in a check-in. Query param `rango` (`all` default, `day`/`month`/`year`) filtra check-ins por `created_at` para las métricas del periodo (las alertas sin resolver siempre son las vigentes, no filtran por rango). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
 
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).

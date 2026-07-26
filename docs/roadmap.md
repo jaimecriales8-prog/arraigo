@@ -43,6 +43,10 @@ Tabla `case_messages` (texto libre, no requiere verificación de presencia — p
 El botón "📄 Descargar reporte" ahora tiene un selector (todo el historial / último día / última semana / último mes) antes de generar el PDF. El rango se pasa como `?rango=` a la API, que filtra check-ins y alertas por `created_at` (info del caso y estadísticas de cumplimiento se calculan solo sobre lo filtrado); el PDF muestra el periodo elegido en el encabezado.
 → `apps/web/src/app/dashboard/casos/[id]/DescargarReporte.tsx`, `apps/web/src/app/api/casos/[id]/reporte/route.tsx`
 
+### 10. Reporte consolidado en PDF (panel)
+Botón "📄 Reporte consolidado" en el Dashboard con selector de periodo (todo / último día / último mes / último año). Genera un PDF con métricas agregadas de toda la organización (casos totales/activos, check-ins del periodo, % cumplimiento, alertas críticas/sin resolver) y una tabla con todos los casos (expediente, imputado, ubicación, peligrosidad, estado, check-ins, cumplimiento) — sin el detalle de cada verificación, para eso está el reporte por caso.
+→ `apps/web/src/app/dashboard/DescargarConsolidado.tsx`, `apps/web/src/app/api/reportes/consolidado/route.tsx`
+
 ## ⏸️ Diferido
 
 _(vacío)_

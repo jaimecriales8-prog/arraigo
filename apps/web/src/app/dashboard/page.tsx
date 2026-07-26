@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import DescargarConsolidado from './DescargarConsolidado'
 
 async function getStats() {
   const cookieStore = await cookies()
@@ -31,7 +32,10 @@ export default async function DashboardPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Dashboard</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 8 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Dashboard</h1>
+        <DescargarConsolidado />
+      </div>
       <p style={{ color: 'var(--text-muted)', marginBottom: 32, fontSize: 14 }}>
         Resumen operativo — {new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
       </p>
