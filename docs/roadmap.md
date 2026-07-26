@@ -39,11 +39,9 @@ Tabla `case_messages` (texto libre, no requiere verificación de presencia — p
 `/dashboard/alertas` ya no es una lista plana: agrupa las alertas sin resolver por caso, con los casos con más alertas primero (empate → alerta más reciente). Cada grupo es un bloque plegable (expediente, imputado, contador, criticidad, link al caso) con las alertas dentro; grupos de más de 3 alertas empiezan colapsados y dentro de un grupo se muestran las primeras 5 con "Mostrar N más". Paginado por caso (8/página).
 → `apps/web/src/app/dashboard/alertas/AlertasLista.tsx`
 
-## 🔨 Pendiente
-
-### Reporte PDF por rango de fechas (panel)
-El botón "📄 Descargar reporte" hoy genera el PDF con el historial completo del caso. Falta poder elegir el periodo (día, semana, mes) antes de generarlo, para reportes más cortos y enfocados sin tener que filtrar el PDF completo a mano.
-→ `apps/web/src/app/api/casos/[id]/reporte/route.tsx` (agregar parámetros de rango de fecha a la query + selector en el botón del detalle del caso)
+### 9. Reporte PDF por rango de fechas (panel)
+El botón "📄 Descargar reporte" ahora tiene un selector (todo el historial / último día / última semana / último mes) antes de generar el PDF. El rango se pasa como `?rango=` a la API, que filtra check-ins y alertas por `created_at` (info del caso y estadísticas de cumplimiento se calculan solo sobre lo filtrado); el PDF muestra el periodo elegido en el encabezado.
+→ `apps/web/src/app/dashboard/casos/[id]/DescargarReporte.tsx`, `apps/web/src/app/api/casos/[id]/reporte/route.tsx`
 
 ## ⏸️ Diferido
 

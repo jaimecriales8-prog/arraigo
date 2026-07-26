@@ -49,6 +49,13 @@ const styles = StyleSheet.create({
   pageNumber: { position: 'absolute', bottom: 20, right: 36, fontSize: 8, color: '#999' },
 })
 
+const RANGO_LABEL: Record<string, string> = {
+  day: 'Último día', week: 'Última semana', month: 'Último mes', all: 'Todo el historial',
+}
+const RANGO_MS: Record<string, number> = {
+  day: 24 * 60 * 60 * 1000, week: 7 * 24 * 60 * 60 * 1000, month: 30 * 24 * 60 * 60 * 1000,
+}
+
 function checkinResultado(c: any): string {
   if (c.status === 'excused') return 'Excusada'
   if (c.status === 'missed' || c.status === 'failed') return CHECKIN_LABEL[c.status]
@@ -56,12 +63,12 @@ function checkinResultado(c: any): string {
   return c.overall_passed ? 'Aprobado' : 'Fallido'
 }
 
-function ReporteDocument({ caso, checkins, alertas, stats }: any) {
+function ReporteDocument({ caso, checkins, alertas, stats, rangoLabel }: any) {
   return (
     <Document>
       <Page size="LETTER" style={styles.page} wrap>
         <Text style={styles.title}>Informe de Cumplimiento — Arraigo</Text>
-        <Text style={styles.subtitle}>Generado el {fmt(new Date().toISOString())}</Text>
+        <Text style={styles.subtitle}>Generado el {fmt(new Date().toISOString())} · Periodo: {rangoLabel}</Text>
 
         <Text style={styles.sectionTitle}>Información del caso</Text>
         {[
@@ -138,6 +145,9 @@ function ReporteDocument({ caso, checkins, alertas, stats }: any) {
 
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+  const { searchParams } = new URL(req.url)
+  const rango = searchParams.get('rango') ?? 'all'
+  const desde = RANGO_MS[rango] ? new Date(Date.now() - RANGO_MS[rango]) : null
   const cookieStore = await cookies()
 
   const supabase = createClient(
@@ -173,17 +183,21 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
   }
 
-  const { data: checkins } = await supabase
+  let checkinsQuery = supabase
     .from('checkins')
     .select('id, status, overall_passed, created_at, failure_reason, excused_reason')
     .eq('case_id', id)
     .order('created_at', { ascending: false })
+  if (desde) checkinsQuery = checkinsQuery.gte('created_at', desde.toISOString())
+  const { data: checkins } = await checkinsQuery
 
-  const { data: alertas } = await supabase
+  let alertasQuery = supabase
     .from('alerts')
     .select('id, severity, type, message, created_at, is_resolved')
     .eq('case_id', id)
     .order('created_at', { ascending: false })
+  if (desde) alertasQuery = alertasQuery.gte('created_at', desde.toISOString())
+  const { data: alertas } = await alertasQuery
 
   const rows = checkins ?? []
   const isPassed = (c: any) => c.status === 'completed' && c.overall_passed
@@ -210,13 +224,14 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       checkins={rows}
       alertas={alertas ?? []}
       stats={{ total, aprobados, fallidos, excusados, porcentaje }}
+      rangoLabel={RANGO_LABEL[rango] ?? RANGO_LABEL.all}
     />
   )
 
   return new NextResponse(new Uint8Array(pdfBuffer), {
     headers: {
       'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="reporte-${caso.case_number}.pdf"`,
+      'Content-Disposition': `attachment; filename="reporte-${caso.case_number}-${rango}.pdf"`,
     },
   })
 }

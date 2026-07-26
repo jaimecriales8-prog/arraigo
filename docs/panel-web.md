@@ -34,7 +34,7 @@ Detalle del caso con:
 - Info del caso (expediente, imputado, frecuencia, ubicación, radio)
 - Estadísticas (total / aprobados / fallidos)
 - **Botón ⚡ Verificación sorpresa** — dispara notificación push al imputado con 15 min de plazo
-- **Botón 📄 Descargar reporte** — genera un PDF vía `GET /api/casos/[id]/reporte` con info del caso, resumen de cumplimiento, incidentes e historial completo, para anexar al expediente judicial. **Pendiente:** elegir rango (día/semana/mes) antes de generarlo — ver `docs/roadmap.md`.
+- **Botón 📄 Descargar reporte** (`DescargarReporte.tsx`) — selector de periodo (todo / último día / última semana / último mes) + genera un PDF vía `GET /api/casos/[id]/reporte?rango=...` con info del caso, resumen de cumplimiento, incidentes e historial acotados al periodo elegido, para anexar al expediente judicial.
 - **Mapa de ubicaciones** (`UbicacionMapa.tsx`, Leaflet + OpenStreetMap, sin API key) — geocerca del domicilio (círculo con el radio permitido) + cada check-in con GPS registrado como punto verde (dentro del radio) o rojo (fuera), con popup de fecha/distancia. Carga con `dynamic(..., {ssr:false})` vía `UbicacionMapaCliente.tsx` (esta versión de Next.js exige que el `ssr:false` viva en un Client Component).
 - **Ver fotos** (`FotosViewer.tsx`) — modal con selfie / escena capturada / foto de referencia, vía URLs firmadas de `GET /api/checkins/[id]/fotos`. Disponible en check-ins normales y en sorpresas (por el `checkin_id` enlazado en `surprise_verifications`).
 - **Excusar** (`ExcusarCheckin.tsx`, solo judicial/super_admin) — en check-ins `missed`/`failed`/`completed` fallido: modal con nota → pasa a `excused` y resuelve las alertas asociadas. Ya no cuenta como incumplimiento (estadísticas ni streak de escalamiento).
@@ -81,7 +81,7 @@ Marca un check-in (`missed`/`failed`/`completed` fallido) como `excused` con not
 Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM), `geofence_radius_m` y/o `danger_level` (1-5) de un caso (rol judicial/super_admin, mismo org). Campos opcionales — solo se actualiza lo enviado.
 
 ### GET /api/casos/[id]/reporte
-Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, resumen de cumplimiento (aprobados / fallidos / excusados / % sobre check-ins no excusados), todas las alertas y el historial completo de check-ins con motivo. Requiere estar autenticado y ser de la misma organización (o `super_admin`). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
+Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, resumen de cumplimiento (aprobados / fallidos / excusados / % sobre check-ins no excusados), todas las alertas y el historial de check-ins con motivo. Query param `rango` (`all` default, `day`/`week`/`month`) filtra check-ins y alertas por `created_at`; el periodo elegido queda impreso en el encabezado del PDF. Requiere estar autenticado y ser de la misma organización (o `super_admin`). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
 
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).

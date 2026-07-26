@@ -7,6 +7,7 @@ import EnviarMensaje from '@/components/EnviarMensaje'
 import ReasignarTecnico from './ReasignarTecnico'
 import EditarCaso from './EditarCaso'
 import HistorialTabla from './HistorialTabla'
+import DescargarReporte from './DescargarReporte'
 import UbicacionMapa from './UbicacionMapaCliente'
 import { dangerColor, dangerLabel } from '@/lib/danger'
 
@@ -89,18 +90,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         <Link href="/dashboard/casos" style={{ color: 'var(--text-muted)', fontSize: 13, textDecoration: 'none' }}>
           ← Volver a casos
         </Link>
-        <a
-          href={`/api/casos/${caso.id}/reporte`}
-          target="_blank"
-          rel="noopener noreferrer"
-          style={{
-            padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-            border: '1px solid var(--border)', background: 'transparent', color: 'var(--text)',
-            textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 6,
-          }}
-        >
-          📄 Descargar reporte
-        </a>
+        <DescargarReporte caseId={caso.id} />
       </div>
 
       <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
