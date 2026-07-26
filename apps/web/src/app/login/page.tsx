@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { useRouter } from 'next/navigation'
+import Logo from '@/components/Logo'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -53,9 +54,8 @@ export default function LoginPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 28,
             marginBottom: 16,
-          }}>🏠</div>
+          }}><Logo size={28} /></div>
           <h1 style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)' }}>Arraigo</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>Panel de Control Judicial</p>
         </div>

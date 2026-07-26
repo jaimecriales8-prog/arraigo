@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { createBrowserClient } from '@supabase/ssr'
 import { useEffect, useState } from 'react'
+import Logo from './Logo'
 
 const ROLE_LABEL: Record<string, string> = {
   super_admin: 'Super Admin',
@@ -55,8 +56,8 @@ export default function Sidebar() {
             background: 'var(--accent)',
             borderRadius: 9,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, flexShrink: 0,
-          }}>🏠</div>
+            flexShrink: 0,
+          }}><Logo size={18} /></div>
           <div>
             <div style={{ fontWeight: 700, fontSize: 15 }}>Arraigo</div>
             <div className="dash-brand-sub" style={{ fontSize: 11, color: 'var(--text-muted)' }}>{roleLabel}</div>
