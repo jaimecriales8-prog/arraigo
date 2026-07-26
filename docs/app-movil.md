@@ -90,6 +90,9 @@ EXPO_PUBLIC_SUPABASE_ANON_KEY=sb_publishable_E8qhtpQDMKGDAIAuclv2UA_vcJpcaa1
 ## Heartbeat (2026-07-25)
 `useHeartbeat` (en `usePushNotifications.ts`) actualiza `profiles.last_seen_at` al abrir la app, al volver a foreground y cada 15 min mientras sigue abierta. Es la señal que el backend usa para alertar si el dispositivo lleva >12h sin reportar (ver `docs/panel-web.md` → Heartbeat de dispositivo). Solo funciona en foreground — no hay tarea en segundo plano registrada.
 
+## Mensajería del funcionario (2026-07-25)
+`home.tsx` sondea `case_messages` sin leer cada 15s (igual que las sorpresas) y muestra un `Modal` bloqueante ("📢 Mensaje del funcionario") con botón "Entendido" que marca `read_at`. También llega por push (`type: 'message'` en el payload de APNs) — el listener de notificaciones en `usePushNotifications.ts` navega a home al tocarla, donde el polling recoge el mensaje.
+
 ## Permisos iOS
 - Cámara: "Arraigo necesita acceso a la cámara para verificar tu identidad."
 - Ubicación: "Arraigo necesita tu ubicación para verificar que estás en tu domicilio."

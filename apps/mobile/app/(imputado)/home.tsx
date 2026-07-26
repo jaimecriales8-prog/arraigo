@@ -1,5 +1,5 @@
-import { useEffect, useRef, useCallback } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, AppState } from 'react-native'
+import { useEffect, useRef, useCallback, useState } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, RefreshControl, AppState, Modal } from 'react-native'
 import { useRouter, useFocusEffect } from 'expo-router'
 import { useAuth } from '../../src/hooks/useAuth'
 import { useCase } from '../../src/hooks/useCase'
@@ -12,6 +12,8 @@ export default function HomeScreen() {
   const { caseData, pendingCheckin, loading, reload } = useCase()
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const redirectedRef = useRef(false)
+  const [pendingMessage, setPendingMessage] = useState<{ id: string; message: string } | null>(null)
+  const [ackLoading, setAckLoading] = useState(false)
 
   // Notificaciones locales diarias según los horarios del caso
   useCheckinNotifications(caseData?.checkin_times as string[] | undefined, caseData?.checkin_window_min)
@@ -50,10 +52,34 @@ export default function HomeScreen() {
       }
     }
 
+    // Mensajes del funcionario sin leer — respaldo por si el push no llegó
+    // (app cerrada, sin token, etc). Se muestran como modal bloqueante.
+    async function checkMensajes() {
+      const { data } = await supabase
+        .from('case_messages')
+        .select('id, message')
+        .eq('case_id', caseData!.id)
+        .is('read_at', null)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      setPendingMessage(data ? { id: data.id, message: data.message } : null)
+    }
+
     checkSorpresa()
-    pollingRef.current = setInterval(checkSorpresa, 15000)
+    checkMensajes()
+    pollingRef.current = setInterval(() => { checkSorpresa(); checkMensajes() }, 15000)
     return () => { if (pollingRef.current) clearInterval(pollingRef.current) }
   }, [caseData?.id])
+
+  async function marcarMensajeLeido() {
+    if (!pendingMessage) return
+    setAckLoading(true)
+    await supabase.from('case_messages').update({ read_at: new Date().toISOString() }).eq('id', pendingMessage.id)
+    setAckLoading(false)
+    setPendingMessage(null)
+  }
 
   const now = new Date()
   const windowOpen = pendingCheckin
@@ -75,6 +101,7 @@ export default function HomeScreen() {
   }
 
   return (
+    <>
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -166,6 +193,23 @@ export default function HomeScreen() {
         </Text>
       </View>
     </ScrollView>
+
+    <Modal visible={!!pendingMessage} transparent animationType="fade">
+      <View style={styles.messageOverlay}>
+        <View style={styles.messageCard}>
+          <Text style={styles.messageTitle}>📢 Mensaje del funcionario</Text>
+          <Text style={styles.messageBody}>{pendingMessage?.message}</Text>
+          <TouchableOpacity
+            style={styles.messageBtn}
+            onPress={marcarMensajeLeido}
+            disabled={ackLoading}
+          >
+            <Text style={styles.messageBtnText}>{ackLoading ? 'Confirmando…' : 'Entendido'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+    </>
   )
 }
 
@@ -221,4 +265,16 @@ const styles = StyleSheet.create({
   infoTitle: { fontSize: 15, color: '#7a9bbf', marginBottom: 16 },
   infoStep: { fontSize: 14, color: '#cbd5e1', marginBottom: 10 },
   infoNote: { fontSize: 12, color: '#4a6a8a', marginTop: 8 },
+
+  messageOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'center', alignItems: 'center', padding: 24,
+  },
+  messageCard: {
+    backgroundColor: '#1a3a5c', borderRadius: 20, padding: 24, width: '100%', maxWidth: 400,
+    borderWidth: 1, borderColor: '#2563eb',
+  },
+  messageTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 12 },
+  messageBody: { fontSize: 16, color: '#e2e8f0', lineHeight: 22, marginBottom: 24 },
+  messageBtn: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center' },
+  messageBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 })

@@ -30,7 +30,11 @@ Botón "📄 Descargar reporte" en el detalle del caso → genera un PDF (vía `
 **Limitación conocida (documentada en la migración y en el código):** la señal solo se actualiza mientras la app está en primer plano o al completar un check-in — no hay tarea en segundo plano registrada, así que apagar el teléfono o forzar el cierre de la app deja de generar señal, que es justo lo que se quiere detectar. Complementa (no reemplaza) las alertas de check-in no realizado.
 → `supabase/migrations/20260725_011_heartbeat_dispositivo.sql`, `apps/mobile/src/hooks/usePushNotifications.ts` (`useHeartbeat`), `supabase/functions/process-checkin/index.ts`
 
+### 4. Mensajería al preso (panel + backend + app)
+Tabla `case_messages` (texto libre, no requiere verificación de presencia — para eso está la sorpresa) + Edge Function `send-message` (mismo patrón APNs de `trigger-surprise`, control de acceso por rol/org). Panel: botón "💬 Enviar mensaje" en el detalle del caso + historial con estado leído/no leído. App: modal bloqueante "📢 Mensaje del funcionario" con botón "Entendido" (marca `read_at`), por push si hay token o por polling cada 15s como respaldo.
+→ `supabase/migrations/20260725_012_mensajeria_preso.sql`, `supabase/functions/send-message/index.ts`, `apps/web/src/components/EnviarMensaje.tsx`, `apps/mobile/app/(imputado)/home.tsx`
+**Nota:** requiere el build de TestFlight con el heartbeat (punto 5) para que la app reciba/marque mensajes — mismo ciclo de compilación, se agrupó en el mismo build.
+
 ## ⏸️ Diferido
 
-### 4. Mensajería al preso (app — necesita rebuild)
-Enviar una instrucción o advertencia a la app del imputado ("preséntese ahora", "acérquese a la ventana"), más allá de la verificación sorpresa. Requiere nueva versión de la app móvil (TestFlight), por eso se difiere frente a las mejoras de solo panel/backend.
+_(vacío — todos los puntos del backlog original quedaron resueltos)_

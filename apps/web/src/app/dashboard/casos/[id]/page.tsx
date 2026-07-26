@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
+import EnviarMensaje from '@/components/EnviarMensaje'
 import ReasignarTecnico from './ReasignarTecnico'
 import EditarCaso from './EditarCaso'
 import HistorialTabla from './HistorialTabla'
@@ -41,7 +42,8 @@ async function getCaso(id: string) {
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
-      surprise_verifications(id, status, created_at, expires_at, checkins(id, overall_passed, face_photo_url, scene_photo_url))
+      surprise_verifications(id, status, created_at, expires_at, checkins(id, overall_passed, face_photo_url, scene_photo_url)),
+      case_messages(id, message, push_sent, read_at, created_at, sender:profiles!case_messages_sent_by_fkey(full_name))
     `)
     .eq('id', id)
     .single()
@@ -229,6 +231,52 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               <SorpresaButton caseId={caso.id} />
             </div>
             <HistorialTabla kind="surprise" rows={sorpresas} />
+          </div>
+        )
+      })()}
+
+      {/* Mensajería al imputado */}
+      {(() => {
+        const mensajes = ((caso as any).case_messages ?? [])
+          .slice()
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        const fmt = (iso: string) =>
+          new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
+        return (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginTop: 20 }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 600 }}>Mensajes al imputado</h2>
+              <EnviarMensaje caseId={caso.id} />
+            </div>
+            {mensajes.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                Sin mensajes enviados aún.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {mensajes.map((m: any, i: number) => (
+                  <div key={m.id} style={{
+                    padding: '14px 24px', borderBottom: i < mensajes.length - 1 ? '1px solid var(--border)' : 'none',
+                    display: 'flex', justifyContent: 'space-between', gap: 16, alignItems: 'flex-start',
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13.5, marginBottom: 4 }}>{m.message}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {fmt(m.created_at)} · Enviado por {m.sender?.full_name ?? '—'}
+                        {!m.push_sent && ' · sin push (solo visible en la app)'}
+                      </div>
+                    </div>
+                    <span style={{
+                      padding: '3px 10px', borderRadius: 20, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+                      background: (m.read_at ? 'var(--success)' : 'var(--warning)') + '22',
+                      color: m.read_at ? 'var(--success)' : 'var(--warning)',
+                    }}>
+                      {m.read_at ? 'Leído' : 'No leído'}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )
       })()}

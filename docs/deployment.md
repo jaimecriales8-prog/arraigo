@@ -66,6 +66,7 @@ SUPABASE_ACCESS_TOKEN=<pat> npx supabase functions deploy trigger-surprise --pro
 
 ### Funciones desplegadas
 - `trigger-surprise` — Dispara verificación sorpresa y envía push notification
+- `send-message` — Envía mensaje libre al imputado (push + persistido en `case_messages`)
 
 ## Supabase
 
@@ -87,8 +88,12 @@ Aplicar en Dashboard → SQL Editor (IPv6 no disponible en este Mac).
 ## Edge Functions (desplegadas)
 - `process-checkin` — verifica GPS + escena (GPT-4o-mini) + cara (FaceTec vía facetec_sessions). No confía en rutas/ids del cliente.
 - `trigger-surprise` — crea sorpresa + push APNs directo (JWT ES256). Control de acceso por rol + org.
+- `send-message` — mensaje libre al imputado (push APNs + persistido en `case_messages`). Mismo patrón que `trigger-surprise`.
 - `facetec-proxy` — reenvía blobs FaceTec a la Testing API y registra veredicto server-side.
 - `schedule-checkins` — (SQL `create_scheduled_checkins()` vía pg_cron cada 15 min, no Edge Function).
+
+### Nota sobre permisos del CLI
+El login de `supabase login` puede no tener rol suficiente en la organización para `functions deploy` (403 "Your account does not have the necessary privileges") aunque el proyecto sea visible en el Dashboard. Alternativas: (a) exportar `SUPABASE_ACCESS_TOKEN` de una cuenta con más privilegios solo para esa sesión de shell, o (b) pegar el código directo en Dashboard → Edge Functions → editor.
 
 ### Secrets configurados
 `OPENAI_API_KEY`, `APNS_KEY_P8`, `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_TOPIC=co.arraigo.app`, `APNS_ENV` (sandbox|production), `FACETEC_UPSTREAM` (opcional).
