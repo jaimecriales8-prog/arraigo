@@ -21,71 +21,90 @@ const fmt = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : '—'
 
 const styles = StyleSheet.create({
-  page: { padding: 36, fontSize: 9.5, fontFamily: 'Helvetica', color: '#1a1a2e' },
-  title: { fontSize: 16, fontWeight: 700, marginBottom: 2 },
-  subtitle: { fontSize: 10, color: '#555', marginBottom: 16 },
-  sectionTitle: { fontSize: 12, fontWeight: 700, marginTop: 16, marginBottom: 8, borderBottom: '1 solid #ccc', paddingBottom: 4 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 12, flexWrap: 'wrap' },
-  statBox: { alignItems: 'center', minWidth: 80, marginVertical: 4 },
-  statValue: { fontSize: 20, fontWeight: 700 },
-  statLabel: { fontSize: 8.5, color: '#555', marginTop: 2, textAlign: 'center' },
-  table: { marginTop: 4 },
-  th: { flexDirection: 'row', backgroundColor: '#f0f0f0', paddingVertical: 4, paddingHorizontal: 4, fontWeight: 700 },
-  tr: { flexDirection: 'row', paddingVertical: 3, paddingHorizontal: 4, borderBottom: '0.5 solid #eee' },
-  colExp: { width: '16%' },
-  colImp: { width: '20%' },
-  colUbi: { width: '18%' },
-  colPel: { width: '10%' },
-  colEst: { width: '12%' },
-  colChk: { width: '10%' },
-  colCump: { width: '14%' },
+  page: { padding: 0, fontSize: 9.5, fontFamily: 'Helvetica', color: '#1a1a2e' },
+  body: { padding: '0 36 36 36' },
+  headerBar: { backgroundColor: '#0a1628', paddingVertical: 14, paddingHorizontal: 36 },
+  title: { fontSize: 18, fontWeight: 700, color: '#fff', marginBottom: 3 },
+  subtitle: { fontSize: 9.5, color: '#9db2d0' },
+  sectionTitle: { fontSize: 12, fontWeight: 700, marginTop: 14, marginBottom: 10, color: '#0a1628' },
+  statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 4 },
+  statCard: {
+    width: '23%', borderRadius: 6, border: '1 solid #e2e5ea', backgroundColor: '#f8f9fb',
+    paddingVertical: 12, paddingHorizontal: 8, alignItems: 'center',
+  },
+  statValue: { fontSize: 19, fontWeight: 700 },
+  statLabel: { fontSize: 7.5, color: '#666', marginTop: 3, textAlign: 'center' },
+  table: { marginTop: 4, borderRadius: 6, overflow: 'hidden', border: '1 solid #e2e5ea' },
+  th: { flexDirection: 'row', backgroundColor: '#0a1628', paddingVertical: 7, paddingHorizontal: 8 },
+  thText: { color: '#fff', fontWeight: 700, fontSize: 8.5, textTransform: 'uppercase', letterSpacing: 0.3 },
+  tr: { flexDirection: 'row', paddingVertical: 6, paddingHorizontal: 8, borderBottom: '0.5 solid #e2e5ea' },
+  trAlt: { backgroundColor: '#f8f9fb' },
+  colExp: { width: '13%', paddingRight: 6, fontWeight: 700 },
+  colImp: { width: '18%', paddingRight: 6 },
+  colUbi: { width: '22%', paddingRight: 6 },
+  colPel: { width: '13%', paddingRight: 6 },
+  colEst: { width: '10%', paddingRight: 6 },
+  colChk: { width: '11%', paddingRight: 6 },
+  colCump: { width: '13%', fontWeight: 700 },
   footer: { position: 'absolute', bottom: 20, left: 36, right: 36, fontSize: 8, color: '#999', textAlign: 'center' },
   pageNumber: { position: 'absolute', bottom: 20, right: 36, fontSize: 8, color: '#999' },
 })
+
+const cumplimientoColor = (pct: string) => {
+  const n = parseInt(pct, 10)
+  if (Number.isNaN(n)) return '#666'
+  if (n >= 80) return '#16a34a'
+  if (n >= 50) return '#d97706'
+  return '#dc2626'
+}
 
 function ReporteConsolidadoDocument({ orgNombre, rangoLabel, stats, casos }: any) {
   return (
     <Document>
       <Page size="LETTER" style={styles.page} wrap>
-        <Text style={styles.title}>Informe Consolidado — Arraigo</Text>
-        <Text style={styles.subtitle}>
-          {orgNombre ? `${orgNombre} · ` : ''}Generado el {fmt(new Date().toISOString())} · Periodo: {rangoLabel}
-        </Text>
-
-        <Text style={styles.sectionTitle}>Resumen general</Text>
-        <View style={styles.statsRow}>
-          <View style={styles.statBox}><Text style={styles.statValue}>{stats.totalCasos}</Text><Text style={styles.statLabel}>Casos totales</Text></View>
-          <View style={styles.statBox}><Text style={[styles.statValue, { color: '#16a34a' }]}>{stats.casosActivos}</Text><Text style={styles.statLabel}>Activos</Text></View>
-          <View style={styles.statBox}><Text style={styles.statValue}>{stats.totalCheckins}</Text><Text style={styles.statLabel}>Check-ins del periodo</Text></View>
-          <View style={styles.statBox}><Text style={[styles.statValue, { color: '#16a34a' }]}>{stats.aprobados}</Text><Text style={styles.statLabel}>Aprobados</Text></View>
-          <View style={styles.statBox}><Text style={[styles.statValue, { color: '#dc2626' }]}>{stats.fallidos}</Text><Text style={styles.statLabel}>Fallidos</Text></View>
-          <View style={styles.statBox}><Text style={styles.statValue}>{stats.porcentaje}</Text><Text style={styles.statLabel}>% Cumplimiento</Text></View>
-          <View style={styles.statBox}><Text style={[styles.statValue, { color: '#dc2626' }]}>{stats.alertasCriticas}</Text><Text style={styles.statLabel}>Alertas críticas sin resolver</Text></View>
-          <View style={styles.statBox}><Text style={styles.statValue}>{stats.alertasTotal}</Text><Text style={styles.statLabel}>Alertas sin resolver</Text></View>
+        <View style={styles.headerBar}>
+          <Text style={styles.title}>Informe Consolidado — Arraigo</Text>
+          <Text style={styles.subtitle}>
+            {orgNombre ? `${orgNombre} · ` : ''}Generado el {fmt(new Date().toISOString())} · Periodo: {rangoLabel}
+          </Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Casos ({casos.length})</Text>
-        <View style={styles.table}>
-          <View style={styles.th}>
-            <Text style={styles.colExp}>Expediente</Text>
-            <Text style={styles.colImp}>Imputado</Text>
-            <Text style={styles.colUbi}>Ubicación</Text>
-            <Text style={styles.colPel}>Peligros.</Text>
-            <Text style={styles.colEst}>Estado</Text>
-            <Text style={styles.colChk}>Check-ins</Text>
-            <Text style={styles.colCump}>Cumplimiento</Text>
+        <View style={styles.body}>
+          <Text style={styles.sectionTitle}>Resumen general</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}><Text style={styles.statValue}>{stats.totalCasos}</Text><Text style={styles.statLabel}>CASOS TOTALES</Text></View>
+            <View style={styles.statCard}><Text style={[styles.statValue, { color: '#16a34a' }]}>{stats.casosActivos}</Text><Text style={styles.statLabel}>ACTIVOS</Text></View>
+            <View style={styles.statCard}><Text style={styles.statValue}>{stats.totalCheckins}</Text><Text style={styles.statLabel}>CHECK-INS DEL PERIODO</Text></View>
+            <View style={styles.statCard}><Text style={[styles.statValue, { color: cumplimientoColor(stats.porcentaje) }]}>{stats.porcentaje}</Text><Text style={styles.statLabel}>% CUMPLIMIENTO</Text></View>
+            <View style={styles.statCard}><Text style={[styles.statValue, { color: '#16a34a' }]}>{stats.aprobados}</Text><Text style={styles.statLabel}>APROBADOS</Text></View>
+            <View style={styles.statCard}><Text style={[styles.statValue, { color: '#dc2626' }]}>{stats.fallidos}</Text><Text style={styles.statLabel}>FALLIDOS</Text></View>
+            <View style={styles.statCard}><Text style={[styles.statValue, { color: '#dc2626' }]}>{stats.alertasCriticas}</Text><Text style={styles.statLabel}>ALERTAS CRÍTICAS</Text></View>
+            <View style={styles.statCard}><Text style={styles.statValue}>{stats.alertasTotal}</Text><Text style={styles.statLabel}>ALERTAS SIN RESOLVER</Text></View>
           </View>
-          {casos.map((c: any) => (
-            <View style={styles.tr} key={c.id} wrap={false}>
-              <Text style={styles.colExp}>{c.case_number}</Text>
-              <Text style={styles.colImp}>{c.imputado}</Text>
-              <Text style={styles.colUbi}>{c.city}{c.department ? `, ${c.department}` : ''}</Text>
-              <Text style={styles.colPel}>{c.danger_level}/5 · {dangerLabel(c.danger_level)}</Text>
-              <Text style={styles.colEst}>{ESTADO_LABEL[c.status] ?? c.status}</Text>
-              <Text style={styles.colChk}>{c.totalCheckins} ({c.aprobados}/{c.fallidos})</Text>
-              <Text style={styles.colCump}>{c.porcentaje}</Text>
+
+          <Text style={styles.sectionTitle}>Casos ({casos.length})</Text>
+          <View style={styles.table}>
+            <View style={styles.th} fixed>
+              <Text style={[styles.colExp, styles.thText]}>Expediente</Text>
+              <Text style={[styles.colImp, styles.thText]}>Imputado</Text>
+              <Text style={[styles.colUbi, styles.thText]}>Ubicación</Text>
+              <Text style={[styles.colPel, styles.thText]}>Peligros.</Text>
+              <Text style={[styles.colEst, styles.thText]}>Estado</Text>
+              <Text style={[styles.colChk, styles.thText]}>Check-ins</Text>
+              <Text style={[styles.colCump, styles.thText]}>Cumplim.</Text>
             </View>
-          ))}
+            {casos.map((c: any, i: number) => (
+              <View style={[styles.tr, ...(i % 2 === 1 ? [styles.trAlt] : [])]} key={c.id} wrap={false}>
+                <Text style={styles.colExp}>{c.case_number}</Text>
+                <Text style={styles.colImp}>{c.imputado}</Text>
+                <Text style={styles.colUbi}>{c.city}{c.department ? `, ${c.department}` : ''}</Text>
+                <Text style={styles.colPel}>{c.danger_level}/5 · {dangerLabel(c.danger_level)}</Text>
+                <Text style={styles.colEst}>{ESTADO_LABEL[c.status] ?? c.status}</Text>
+                <Text style={styles.colChk}>{c.totalCheckins} ({c.aprobados}/{c.fallidos})</Text>
+                <Text style={[styles.colCump, { color: cumplimientoColor(c.porcentaje) }]}>{c.porcentaje}</Text>
+              </View>
+            ))}
+          </View>
         </View>
 
         <Text style={styles.footer}>Documento generado automáticamente por el sistema Arraigo — para uso judicial.</Text>
@@ -129,7 +148,12 @@ export async function GET(req: Request) {
   if (me.role !== 'super_admin') casosQuery = casosQuery.eq('organization_id', me.organization_id)
   const { data: casosRaw } = await casosQuery
 
-  const orgNombre: string | null = null
+  let orgNombre: string | null = null
+  if (me.role !== 'super_admin') {
+    const { data: org } = await supabase
+      .from('organizations').select('name').eq('id', me.organization_id).single()
+    orgNombre = org?.name ?? null
+  }
 
   const casoIds = (casosRaw ?? []).map((c: any) => c.id)
 
