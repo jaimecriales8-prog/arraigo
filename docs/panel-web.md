@@ -52,7 +52,7 @@ Mapa Leaflet con todos los casos de la org (relleno del marcador = cumplimiento:
 → `apps/web/src/app/dashboard/mapa/page.tsx` (server, RLS filtra por org) + `MapaCasos.tsx`/`MapaCasosCliente.tsx`
 
 ### /dashboard/alertas
-Lista de alertas sin resolver (críticas, advertencias) con expediente/imputado enlazado y botón para marcar como resuelta. Paginado (12/página).
+Alertas sin resolver agrupadas por caso, con los casos con más alertas primero (empate → alerta más reciente primero). Cada grupo muestra un encabezado (expediente, imputado, contador, link al caso) plegable, con las alertas dentro (severidad, tipo, mensaje, fecha, botón resolver); grupos con más de 3 alertas empiezan colapsados, y dentro de un grupo se muestran las primeras 5 con un "Mostrar N más". Paginado por caso (8 casos/página). → `AlertasLista.tsx`
 
 ### /dashboard/usuarios
 Módulo de gestión de usuarios de la organización:
@@ -88,7 +88,7 @@ Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, r
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
 - **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio/peligrosidad) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF + mensajería.
 - **Mapa** (`/dashboard/mapa`) — todos los casos en un mapa, filtro depto/municipio/peligrosidad + búsqueda por nombre/expediente.
-- **Alertas** (`/dashboard/alertas`) — alertas sin resolver, paginado (12/página).
+- **Alertas** (`/dashboard/alertas`) — alertas sin resolver agrupadas por caso (más alertas primero), paginado por caso (8/página).
 - **Usuarios** — crear usuario (oculto para operador).
 
 ## Responsive móvil (2026-07-12)
