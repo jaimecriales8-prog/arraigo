@@ -43,6 +43,10 @@ Detalle del caso con:
 - **Mensajes al imputado** (`EnviarMensaje.tsx`) — botón "💬 Enviar mensaje" (texto libre, no exige verificación de presencia) + historial con estado leído/no leído. Ver mensajería abajo.
 - Historial de check-ins con scores de cara, escena y estado GPS (paginado)
 
+### /dashboard/mapa
+Mapa Leaflet con todos los casos de la org (marcador coloreado por cumplimiento: verde al día, ámbar pendiente/sin check-ins, rojo en mora/fallido, gris inactivo). Filtros por departamento y municipio (el de municipio se acota al departamento elegido) + búsqueda por nombre de imputado o expediente, todo client-side sobre el dataset ya cargado. Popup por marcador con link al detalle del caso.
+→ `apps/web/src/app/dashboard/mapa/page.tsx` (server, RLS filtra por org) + `MapaCasos.tsx`/`MapaCasosCliente.tsx`
+
 ### /dashboard/alertas
 Lista de alertas sin resolver (críticas, advertencias) con expediente/imputado enlazado y botón para marcar como resuelta. Paginado (12/página).
 
@@ -78,7 +82,8 @@ Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, r
 ## Pantallas
 - **Casos** (`/dashboard/casos`) — lista + botón "Nuevo caso" (solo judicial/super_admin).
 - **Nuevo caso** (`/dashboard/casos/nuevo`) — formulario: imputado, técnico, expediente, dirección, horarios, geocerca.
-- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF.
+- **Detalle** (`/dashboard/casos/[id]`) — info + reasignar técnico + gestionar caso (estado/horarios/radio) + mapa de ubicaciones + historial paginado (8/página) con botones "Excusar"/"Ver fotos" + botón sorpresa + descargar reporte PDF + mensajería.
+- **Mapa** (`/dashboard/mapa`) — todos los casos en un mapa, filtro depto/municipio + búsqueda por nombre/expediente.
 - **Alertas** (`/dashboard/alertas`) — alertas sin resolver, paginado (12/página).
 - **Usuarios** — crear usuario (oculto para operador).
 
