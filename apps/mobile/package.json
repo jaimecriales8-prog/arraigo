@@ -8,6 +8,7 @@
     "expo": "~56.0.12",
     "expo-application": "~56.0.3",
     "expo-camera": "~56.0.8",
+    "expo-linking": "~56.0.16",
     "expo-location": "~56.0.18",
     "expo-notifications": "~56.0.18",
     "expo-router": "~56.2.11",

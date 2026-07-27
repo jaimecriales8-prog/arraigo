@@ -5279,6 +5279,19 @@ __metadata:
   languageName: node
   linkType: hard
 
+"expo-linking@npm:~56.0.16":
+  version: 56.0.16
+  resolution: "expo-linking@npm:56.0.16"
+  dependencies:
+    expo-constants: "npm:~56.0.22"
+    invariant: "npm:^2.2.4"
+  peerDependencies:
+    react: "*"
+    react-native: "*"
+  checksum: 9492d943d9b49e196f65976a8790ec94fb73f31615b1eb0f28334a1b1a1ee741ecd3b8eaf623846930decfd391b804de65a94f2c12ab3ba7529c5bd3816500fe
+  languageName: node
+  linkType: hard
+
 "expo-location@npm:~56.0.18":
   version: 56.0.22
   resolution: "expo-location@npm:56.0.22"
@@ -7515,6 +7528,7 @@ __metadata:
     expo: "npm:~56.0.12"
     expo-application: "npm:~56.0.3"
     expo-camera: "npm:~56.0.8"
+    expo-linking: "npm:~56.0.16"
     expo-location: "npm:~56.0.18"
     expo-notifications: "npm:~56.0.18"
     expo-router: "npm:~56.2.11"
