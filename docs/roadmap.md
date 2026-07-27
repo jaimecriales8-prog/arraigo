@@ -63,7 +63,7 @@ Botón "📝 Agregar nota" en el detalle del caso — observaciones internas del
 ## 🔨 En progreso
 
 ### 14. App Android
-Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android generado como stub (`FacetecModule.kt`) — pendiente el SDK real de FaceTec y Android Studio instalado localmente para compilar y probar. Push remoto en Android necesitará Firebase (FCM) más adelante; mientras tanto degrada a polling sin romper nada. Detalle en `docs/app-movil.md` y `apps/mobile/android/FACETEC_SETUP_ANDROID.md`.
+Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android portado desde iOS con integración real (SDK v10.1.9 ya agregado, `.aar` en `android/app/libs/`) — falta compilar y probar por primera vez, pendiente de que termine de instalarse Android Studio. Push remoto en Android necesitará Firebase (FCM) más adelante; mientras tanto degrada a polling sin romper nada. Detalle en `docs/app-movil.md` y `apps/mobile/android/FACETEC_SETUP_ANDROID.md`.
 
 ## ⏸️ Diferido
 

@@ -1,60 +1,61 @@
-# FaceTec — pasos pendientes para Android
+# FaceTec — Android
 
-Espejo de `ios/FACETEC_SETUP.md`. El bridge de React Native (Kotlin) ya está
-escrito y registrado, pero el cuerpo real de las llamadas al SDK de FaceTec
-está pendiente porque el SDK de Android aún no se ha descargado/agregado al
-proyecto.
+Espejo de `ios/FACETEC_SETUP.md`. SDK v10.1.9 (Managed Testing, mismo Device
+Key que iOS: `dTCCKq4bZ9mHJrkhc0dL2bCZuzAjMAF1`).
 
-## Ya hecho
-- `android/app/src/main/java/co/arraigo/app/facetec/FacetecModule.kt` — expone
-  a JS los mismos 3 métodos que iOS: `initialize`, `enroll`, `authenticate`.
-  Ahora mismo cada uno rechaza la promesa con `facetec_not_implemented`.
-- `FacetecPackage.kt` — registra el módulo, ya está agregado en
-  `MainApplication.kt`.
-- El lado JS (`src/lib/facetec.ts`) no necesita cambios — ya es
-  platform-agnostic (usa `NativeModules.FacetecModule`).
+## Estado: código escrito, sin compilar todavía (falta Android Studio/JDK)
 
-## Pendiente (una vez que tengas la cuenta/SDK de FaceTec para Android)
+El puente nativo Android ya está integrado, mirando 1:1 la SampleApp oficial
+de FaceTec (`facetec-sdk-android-10.1.9/apps/SampleApp`) y el mismo flujo que
+`ios/Arraigo/Facetec/*.swift`:
 
-1. **Agregar la dependencia del SDK** — FaceTec distribuye el SDK Android
-   como `.aar` o vía su Maven privado (mismo portal de desarrollador que
-   iOS). Se agrega en `android/app/build.gradle` (`dependencies { }`).
+- `android/app/build.gradle` — dependencia del SDK (`implementation
+  files('libs/facetec-sdk-10.1.9.aar')`) + OkHttp (networking). **El `.aar`
+  no se versiona en git** (igual que `ios/Frameworks/*.xcframework`, mismo
+  patrón: los binarios del SDK no van al repo). Antes de compilar, copiarlo:
+  ```bash
+  mkdir -p apps/mobile/android/app/libs
+  cp ~/Downloads/FaceTecSDK-android-10.1.9/facetec-sdk-10.1.9.aar apps/mobile/android/app/libs/
+  ```
+  (o desde donde hayas descargado el SDK — el archivo exacto es
+  `facetec-sdk-10.1.9.aar`, no el `-automated` ni el `-minimal`).
+- `FacetecModule.kt` — expone `initialize`/`enroll`/`authenticate` a JS.
+  Diferencia con iOS: FaceTec en Android lanza su propia Activity
+  (`startActivityForResult` internamente), así que el resultado se recibe
+  vía `ActivityEventListener.onActivityResult` en vez de un delegate directo.
+- `FacetecSessionProcessor.kt` — implementa `FaceTecSessionRequestProcessor`:
+  recibe el `sessionRequestBlob`, lo manda por POST (OkHttp, con reintentos
+  igual que iOS: 4 intentos con backoff 0/0/2s/5s/10s) a `facetec-proxy`
+  (Edge Function — sin cambios, ya era platform-agnostic), y devuelve el
+  `responseBlob` al SDK.
+- `FacetecPackage.kt` + registro en `MainApplication.kt` — ya hecho.
+- Lado JS (`src/lib/facetec.ts`) — **sin cambios**, ya era platform-agnostic.
 
-2. **Device Key** — la misma que usa iOS
-   (`dTCCKq4bZ9mHJrkhc0dL2bCZuzAjMAF1`, ver `src/lib/facetec.ts`), FaceTec
-   emite una por app, no por plataforma — debería funcionar igual en Android.
-   Confirmar en el portal de FaceTec.
+## Pendiente
 
-3. **Portar la lógica de sesión** — traducir
-   `ios/Arraigo/Facetec/FacetecSessionProcessor.swift` a Kotlin:
-   - Recibe el `sessionRequestBlob` del SDK.
-   - Lo manda por POST a `facetec-proxy` (Edge Function ya existe y es
-     platform-agnostic, no necesita cambios) con `{ requestBlob, kind,
-     externalDatabaseRefID, testingApiHeader, checkinId? }`.
-   - Devuelve el `responseBlob` de la respuesta al SDK.
-   - Reintentos (hasta 4, con backoff) igual que en iOS.
-
-4. **Inicialización** — el equivalente Android de
-   `FaceTec.sdk.initializeWithSessionRequest(...)` (nombre exacto de la API
-   a confirmar contra la versión del SDK que se descargue — la estructura de
-   FaceTec suele ser paralela entre iOS/Android pero los nombres de clase
-   varían).
-
-5. **UI de la sesión** — en iOS se presenta un `UIViewController` sobre la
-   vista actual; en Android el SDK típicamente abre su propia `Activity` —
-   revisar la doc de integración de FaceTec para Android para el patrón
-   exacto de lanzamiento.
-
-6. **Build** — una vez integrado:
+1. **Instalar Android Studio** (en curso) — trae el JDK embebido que hace
+   falta para correr Gradle (`./gradlew help` falló ahora mismo por eso: "Unable
+   to locate a Java Runtime").
+2. **Primer build de verificación:**
    ```bash
    cd apps/mobile
-   npx expo run:android --variant release
+   npx expo run:android
    ```
-   (requiere Android Studio + SDK instalados; `ANDROID_HOME` configurado).
+   Esto compilará el módulo Kotlin contra el `.aar` real por primera vez —
+   es la primera vez que este código se valida contra el compilador (no se
+   pudo compilar en este entorno por falta de Android SDK/JDK). Si hay
+   errores de firma de métodos del SDK (nombres exactos de clases/parámetros
+   pueden variar levemente entre versiones), revisar contra
+   `~/Downloads/FaceTecSDK-android-10.1.9/apps/SampleApp/app/src/main/java/com/facetec/sampleapp/SampleAppActivity.java`
+   y `SessionRequestProcessor.java` (la referencia oficial usada para escribir
+   este puente).
+3. **Probar enroll + authenticate** en un dispositivo/emulador real — el
+   flujo completo (técnico enrola, imputado hace check-in) depende de que
+   `facetec-proxy` acepte las llamadas igual que ya lo hace desde iOS.
 
 ## Nota
-El resto de la app (checkins sin FaceTec vía acelerómetro, GPS, cámara para
-selfie/escena, mapa, mensajería, heartbeat) no depende del SDK de FaceTec y
-ya debería compilar y correr en Android sin este trabajo pendiente — el
-toggle `facetecEnabled` por organización permite operar sin FaceTec si hace
-falta probar el resto de la app primero.
+El resto de la app (checkins por acelerómetro, GPS, cámara, mapa, mensajería,
+notas, heartbeat) no depende de esto y ya debería compilar y correr en
+Android — el toggle `facetecEnabled` por organización permite operar sin
+FaceTec si hace falta probar el resto de la app primero mientras se resuelve
+el build de FaceTec.
