@@ -1,5 +1,5 @@
 'use client'
-import { useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 
 type Entrada = {
@@ -70,46 +70,65 @@ function detalle(a: Entrada): string {
 
 const PER_PAGE = 15
 
-export default function AuditoriaLista({ entradas }: { entradas: Entrada[] }) {
+export default function AuditoriaLista({ entradasIniciales, totalInicial }: { entradasIniciales: Entrada[]; totalInicial: number }) {
   const [accion, setAccion] = useState('')
   const [busqueda, setBusqueda] = useState('')
   const [page, setPage] = useState(0)
+  const [entradas, setEntradas] = useState(entradasIniciales)
+  const [total, setTotal] = useState(totalInicial)
+  const [loading, setLoading] = useState(false)
 
-  const acciones = useMemo(
-    () => Array.from(new Set(entradas.map(e => e.action))).sort(),
-    [entradas]
-  )
+  // La página 0 sin filtros ya viene del servidor (page.tsx) — evita un
+  // fetch redundante en la primera carga.
+  const esEstadoInicial = page === 0 && accion === '' && busqueda === ''
 
-  const filtradas = useMemo(() => {
-    const q = busqueda.trim().toLowerCase()
-    return entradas.filter(e => {
-      if (accion && e.action !== accion) return false
-      if (q && !e.actorNombre.toLowerCase().includes(q) && !(e.caseNumber ?? '').toLowerCase().includes(q)) return false
-      return true
-    })
-  }, [entradas, accion, busqueda])
+  useEffect(() => {
+    if (esEstadoInicial) {
+      setEntradas(entradasIniciales)
+      setTotal(totalInicial)
+      return
+    }
+    let cancelado = false
+    setLoading(true)
+    const params = new URLSearchParams({ page: String(page) })
+    if (accion) params.set('accion', accion)
+    if (busqueda.trim()) params.set('q', busqueda.trim())
 
-  const total = filtradas.length
+    fetch(`/api/auditoria?${params}`)
+      .then(res => res.json())
+      .then(data => {
+        if (cancelado) return
+        setEntradas(data.entradas ?? [])
+        setTotal(data.total ?? 0)
+      })
+      .finally(() => { if (!cancelado) setLoading(false) })
+
+    return () => { cancelado = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page, accion, busqueda])
+
+  // Debounce simple de la búsqueda: resetea a página 0 al cambiar filtros.
+  function onAccion(v: string) { setAccion(v); setPage(0) }
+  function onBusqueda(v: string) { setBusqueda(v); setPage(0) }
+
   const pages = Math.max(1, Math.ceil(total / PER_PAGE))
-  const p = Math.min(page, pages - 1)
-  const slice = filtradas.slice(p * PER_PAGE, (p + 1) * PER_PAGE)
 
   return (
     <div>
       <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
-        <select value={accion} onChange={(e) => { setAccion(e.target.value); setPage(0) }} style={selectStyle}>
+        <select value={accion} onChange={(e) => onAccion(e.target.value)} style={selectStyle}>
           <option value="">Todas las acciones</option>
-          {acciones.map(a => <option key={a} value={a}>{ACTION_LABEL[a] ?? a}</option>)}
+          {Object.entries(ACTION_LABEL).map(([a, label]) => <option key={a} value={a}>{label}</option>)}
         </select>
         <input
           value={busqueda}
-          onChange={(e) => { setBusqueda(e.target.value); setPage(0) }}
+          onChange={(e) => onBusqueda(e.target.value)}
           placeholder="Buscar por funcionario o expediente…"
           style={{ ...selectStyle, flex: 1, minWidth: 220 }}
         />
       </div>
 
-      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }} className="table-scroll">
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', opacity: loading ? 0.6 : 1 }} className="table-scroll">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -122,8 +141,11 @@ export default function AuditoriaLista({ entradas }: { entradas: Entrada[] }) {
             </tr>
           </thead>
           <tbody>
-            {slice.map((a, i) => (
-              <tr key={a.id} style={{ borderBottom: i < slice.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            {entradas.length === 0 && !loading && (
+              <tr><td colSpan={5} style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)' }}>Sin resultados.</td></tr>
+            )}
+            {entradas.map((a, i) => (
+              <tr key={a.id} style={{ borderBottom: i < entradas.length - 1 ? '1px solid var(--border)' : 'none' }}>
                 <td style={{ padding: '12px 16px', fontSize: 12.5, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>{fmt(a.createdAt)}</td>
                 <td style={{ padding: '12px 16px' }}>
                   <span style={{
@@ -152,10 +174,10 @@ export default function AuditoriaLista({ entradas }: { entradas: Entrada[] }) {
 
       {pages > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, fontSize: 13 }}>
-          <span style={{ color: 'var(--text-muted)' }}>{p * PER_PAGE + 1}–{Math.min((p + 1) * PER_PAGE, total)} de {total}</span>
+          <span style={{ color: 'var(--text-muted)' }}>{page * PER_PAGE + 1}–{Math.min((page + 1) * PER_PAGE, total)} de {total}</span>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => setPage(p - 1)} disabled={p === 0} style={btn(p === 0)}>← Anterior</button>
-            <button onClick={() => setPage(p + 1)} disabled={p >= pages - 1} style={btn(p >= pages - 1)}>Siguiente →</button>
+            <button onClick={() => setPage(p => p - 1)} disabled={page === 0 || loading} style={btn(page === 0 || loading)}>← Anterior</button>
+            <button onClick={() => setPage(p => p + 1)} disabled={page >= pages - 1 || loading} style={btn(page >= pages - 1 || loading)}>Siguiente →</button>
           </div>
         </div>
       )}
