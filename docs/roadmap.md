@@ -84,6 +84,10 @@ Revisión de código (2026-07-27) identificó 8 riesgos concretos de escala: `sc
   → `supabase/migrations/20260727_017_schedule_checkins_set_based.sql`, `supabase/functions/schedule-checkins/index.ts` (ahora un wrapper delgado)
 - Mapa y reporte consolidado movidos a agregación SQL: vista `mapa_casos` (último check-in por caso vía LATERAL join, antes traía el historial completo anidado) y función `reporte_consolidado_stats()` (suma por caso en Postgres, antes traía cada check-in/alerta cruda al servidor). De paso se detectó que el enum `checkin_status` no tiene el valor `'passed'` que el código JS comparaba defensivamente (solo existe `'completed')` — la comparación SQL estricta lo reveló. Verificado en navegador: mapa y PDF consolidado con datos correctos tras el cambio.
   → `supabase/migrations/20260727_018_agregaciones_escala.sql`, `apps/web/src/app/dashboard/mapa/page.tsx`, `apps/web/src/app/api/reportes/consolidado/route.tsx`
+- `check_device_silence()` y `expire_missed_verifications()` reescritas a SQL set-based (mismo patrón: loops PL/pgSQL fila por fila con un INSERT por caso → una sola query con `NOT EXISTS`/CTEs). Validado con `SELECT ...()` sin error en ambas.
+  → `supabase/migrations/20260727_019_device_silence_set_based.sql`, `supabase/migrations/20260727_020_expire_missed_set_based.sql`
+
+**Único punto pendiente:** política de retención de evidencia fotográfica (`checkin-evidence`) — no se toca hasta que se defina el requisito legal de cuánto tiempo hay obligación de guardar esa evidencia (borrar mal es irreversible y es cadena de custodia judicial).
 
 **Pendiente:** `check_device_silence()` y `expire_missed_verifications()` a lógica set-based; definir política de retención de evidencia fotográfica.
 
