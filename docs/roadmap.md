@@ -75,6 +75,12 @@ Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `a
 - Push remoto en Android (Firebase/FCM) — degrada a polling por ahora, sin romper nada.
 - Firma de release / decidir distribución (APK directo vs Google Play).
 
+### 16. Escala a 50.000 casos activos — en curso
+Revisión de código (2026-07-27) identificó 8 riesgos concretos de escala: `schedule-checkins` con dedup N+1 síncrono por caso/horario, `check_device_silence()` y `expire_missed_verifications()` con loops PL/pgSQL fila por fila, falta de índices compuestos, mapa/reporte consolidado trayendo datos sin límite (todos los check-ins anidados de todos los casos), sin política de retención de fotos en `checkin-evidence`, y `/dashboard/auditoria` con límite fijo de 500 sin paginar. Prioridad acordada: 1) `schedule-checkins` (rompe primero, en miles de casos), 2) mapa + reporte consolidado (uso diario), 3) retención de fotos (costo/legal — pendiente definir requisito legal de retención antes de tocar código).
+**Hecho:** índices compuestos (`idx_checkins_case_created`, `idx_alerts_case_resolved`, `idx_alerts_case_type_created`, `idx_audit_log_org_created`) — riesgo nulo, ya aplicado.
+→ `supabase/migrations/20260727_016_indices_escala.sql`
+**Pendiente:** reescribir `schedule-checkins` (edge function) y las dos funciones cron a lógica set-based; paginar/agregar en SQL el mapa y el reporte consolidado; definir política de retención de evidencia fotográfica.
+
 ## ⏸️ Diferido
 
 _(vacío)_
