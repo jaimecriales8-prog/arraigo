@@ -92,10 +92,12 @@ Revisión de código (2026-07-27) identificó 8 riesgos concretos de escala: `sc
 
 **Único punto pendiente:** política de retención de evidencia fotográfica (`checkin-evidence`) — no se toca hasta que se defina el requisito legal de cuánto tiempo hay obligación de guardar esa evidencia (borrar mal es irreversible y es cadena de custodia judicial).
 
-**Pendiente:** `check_device_silence()` y `expire_missed_verifications()` a lógica set-based; definir política de retención de evidencia fotográfica.
-
 **Nota importante para sesiones futuras:** al menos una función (`create_scheduled_checkins`) estaba en producción sin migración local que la respaldara — el repo de migraciones puede no reflejar 100% el estado real de la BD. Antes de asumir que algo "no existe" porque no aparece en `supabase/migrations/`, verificar directo contra la BD (ej. `SELECT proname FROM pg_proc WHERE proname ILIKE '%algo%';` o `SELECT jobname, command FROM cron.job;`).
 
 ## ⏸️ Diferido
 
-_(vacío)_
+### 17. Ownership individual de casos para `judicial` (posible rediseño de jerarquía)
+Revisión (2026-07-27) confirmó cómo funciona hoy la jerarquía real: `super_admin` (todas las orgs) → dentro de una org, `judicial` y `operador` ven/gestionan **todos** los casos de la organización (scope por `organization_id`, sin ownership individual) → `tecnico` sí está acotado por caso (`cases.technician_id = auth.uid()`, RLS en `supabase/migrations/20260617_001_schema.sql:390,399`) → `imputado` ve solo su propio caso. La columna `cases.supervisor_id` (comentada como "juez/fiscal") existe en el schema pero no se usa en ningún lado del código de la app (sin UI de asignación, sin query que filtre por ella) — es un vestigio, no un mecanismo activo.
+
+El usuario planteó un modelo distinto: que cada `judicial` tenga su propio grupo de presos (ownership individual, no solo por organización). Esto **no existe hoy** y sería un cambio de diseño: decidir si se reutiliza `supervisor_id` o se crea una estructura nueva, y ajustar las políticas RLS de `cases`, `checkins`, `alerts`, `messages`, etc. para filtrar por el judicial asignado en vez de solo por `organization_id`.
+**Pendiente:** decisión del usuario sobre si se implementa este ownership individual, y si es así, definir el mecanismo antes de tocar RLS.
