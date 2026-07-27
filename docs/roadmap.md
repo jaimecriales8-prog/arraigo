@@ -87,6 +87,9 @@ Revisión de código (2026-07-27) identificó 8 riesgos concretos de escala: `sc
 - `check_device_silence()` y `expire_missed_verifications()` reescritas a SQL set-based (mismo patrón: loops PL/pgSQL fila por fila con un INSERT por caso → una sola query con `NOT EXISTS`/CTEs). Validado con `SELECT ...()` sin error en ambas.
   → `supabase/migrations/20260727_019_device_silence_set_based.sql`, `supabase/migrations/20260727_020_expire_missed_set_based.sql`
 
+- `/dashboard/auditoria` con paginación real server-side (antes traía hasta 500 filas fijas y filtraba/paginaba en memoria en el cliente). Nuevo `/api/auditoria` con filtro por acción + búsqueda por funcionario/expediente + `.range()` + count exacto. Verificado en navegador.
+  → `apps/web/src/app/api/auditoria/route.ts`, `apps/web/src/app/dashboard/auditoria/`
+
 **Único punto pendiente:** política de retención de evidencia fotográfica (`checkin-evidence`) — no se toca hasta que se defina el requisito legal de cuánto tiempo hay obligación de guardar esa evidencia (borrar mal es irreversible y es cadena de custodia judicial).
 
 **Pendiente:** `check_device_silence()` y `expire_missed_verifications()` a lógica set-based; definir política de retención de evidencia fotográfica.
