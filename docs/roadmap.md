@@ -77,9 +77,15 @@ Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `a
 
 ### 16. Escala a 50.000 casos activos — en curso
 Revisión de código (2026-07-27) identificó 8 riesgos concretos de escala: `schedule-checkins` con dedup N+1 síncrono por caso/horario, `check_device_silence()` y `expire_missed_verifications()` con loops PL/pgSQL fila por fila, falta de índices compuestos, mapa/reporte consolidado trayendo datos sin límite (todos los check-ins anidados de todos los casos), sin política de retención de fotos en `checkin-evidence`, y `/dashboard/auditoria` con límite fijo de 500 sin paginar. Prioridad acordada: 1) `schedule-checkins` (rompe primero, en miles de casos), 2) mapa + reporte consolidado (uso diario), 3) retención de fotos (costo/legal — pendiente definir requisito legal de retención antes de tocar código).
-**Hecho:** índices compuestos (`idx_checkins_case_created`, `idx_alerts_case_resolved`, `idx_alerts_case_type_created`, `idx_audit_log_org_created`) — riesgo nulo, ya aplicado.
-→ `supabase/migrations/20260727_016_indices_escala.sql`
-**Pendiente:** reescribir `schedule-checkins` (edge function) y las dos funciones cron a lógica set-based; paginar/agregar en SQL el mapa y el reporte consolidado; definir política de retención de evidencia fotográfica.
+**Hecho:**
+- Índices compuestos (`idx_checkins_case_created`, `idx_alerts_case_resolved`, `idx_alerts_case_type_created`, `idx_audit_log_org_created`) — riesgo nulo, ya aplicado.
+  → `supabase/migrations/20260727_016_indices_escala.sql`
+- `create_scheduled_checkins()` reescrita a SQL set-based (una query con CTEs en vez de un round-trip a la BD por caso × horario). Se descubrió al aplicar la migración que la función **ya vivía en producción** aplicada directo en el Dashboard (con un cron `schedule-checkins` duplicado corriendo en paralelo al `create-scheduled-checkins` nuevo) — se limpió el duplicado. Validado con datos reales.
+  → `supabase/migrations/20260727_017_schedule_checkins_set_based.sql`, `supabase/functions/schedule-checkins/index.ts` (ahora un wrapper delgado)
+
+**Pendiente:** `check_device_silence()` y `expire_missed_verifications()` a lógica set-based; paginar/agregar en SQL el mapa y el reporte consolidado; definir política de retención de evidencia fotográfica.
+
+**Nota importante para sesiones futuras:** al menos una función (`create_scheduled_checkins`) estaba en producción sin migración local que la respaldara — el repo de migraciones puede no reflejar 100% el estado real de la BD. Antes de asumir que algo "no existe" porque no aparece en `supabase/migrations/`, verificar directo contra la BD (ej. `SELECT proname FROM pg_proc WHERE proname ILIKE '%algo%';` o `SELECT jobname, command FROM cron.job;`).
 
 ## ⏸️ Diferido
 
