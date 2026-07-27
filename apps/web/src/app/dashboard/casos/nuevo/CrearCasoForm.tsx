@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { dangerColor, dangerLabel } from '@/lib/danger'
+import { DEPARTAMENTOS, municipiosDe } from '@/lib/colombia'
 
 type Persona = { id: string; full_name: string }
 
@@ -32,6 +33,10 @@ export default function CrearCasoForm({ imputados, tecnicos }: { imputados: Pers
   const [result, setResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
   function set(k: keyof typeof form, v: string) { setForm(f => ({ ...f, [k]: v })) }
+
+  function setDepartamento(v: string) {
+    setForm(f => ({ ...f, department: v, city: '' }))
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -126,12 +131,24 @@ export default function CrearCasoForm({ imputados, tecnicos }: { imputados: Pers
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           <div>
-            <label style={labelStyle}>Ciudad</label>
-            <input value={form.city} onChange={e => set('city', e.target.value)} required style={inputStyle} placeholder="Bogotá" />
+            <label style={labelStyle}>Departamento</label>
+            <select value={form.department} onChange={e => setDepartamento(e.target.value)} required style={{ ...inputStyle, cursor: 'pointer' }}>
+              <option value="" disabled>Selecciona un departamento</option>
+              {DEPARTAMENTOS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
           </div>
           <div>
-            <label style={labelStyle}>Departamento</label>
-            <input value={form.department} onChange={e => set('department', e.target.value)} required style={inputStyle} placeholder="Cundinamarca" />
+            <label style={labelStyle}>Municipio / Ciudad</label>
+            <select
+              value={form.city}
+              onChange={e => set('city', e.target.value)}
+              required
+              disabled={!form.department}
+              style={{ ...inputStyle, cursor: form.department ? 'pointer' : 'not-allowed', opacity: form.department ? 1 : 0.6 }}
+            >
+              <option value="" disabled>{form.department ? 'Selecciona un municipio' : 'Elige primero el departamento'}</option>
+              {municipiosDe(form.department).map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
           </div>
         </div>
 

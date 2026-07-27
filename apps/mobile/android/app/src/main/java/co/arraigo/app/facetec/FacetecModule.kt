@@ -1,5 +1,7 @@
 package co.arraigo.app.facetec
 
+import android.app.Activity
+import android.content.Intent
 import com.facebook.react.bridge.Arguments
 import com.facebook.react.bridge.BaseActivityEventListener
 import com.facebook.react.bridge.Promise
@@ -28,14 +30,8 @@ class FacetecModule(private val reactContext: ReactApplicationContext) :
   private var pendingPromise: Promise? = null
   private var pendingProcessor: FacetecSessionProcessor? = null
 
-  init {
-    reactContext.addActivityEventListener(activityEventListener)
-  }
-
-  override fun getName() = "FacetecModule"
-
   private val activityEventListener = object : BaseActivityEventListener() {
-    override fun onActivityResult(activity: android.app.Activity?, requestCode: Int, resultCode: Int, data: android.content.Intent?) {
+    override fun onActivityResult(activity: Activity, requestCode: Int, resultCode: Int, data: Intent?) {
       val sessionResult = FaceTecSDK.getActivitySessionResult(requestCode, resultCode, data) ?: return
       val promise = pendingPromise ?: return
       val processor = pendingProcessor
@@ -49,9 +45,15 @@ class FacetecModule(private val reactContext: ReactApplicationContext) :
     }
   }
 
+  init {
+    reactContext.addActivityEventListener(activityEventListener)
+  }
+
+  override fun getName() = "FacetecModule"
+
   @ReactMethod
   fun initialize(deviceKey: String, endpoint: String, authToken: String, promise: Promise) {
-    val activity = currentActivity
+    val activity = reactContext.currentActivity
     if (activity == null) {
       promise.reject("facetec_no_activity", "No hay actividad en primer plano")
       return
@@ -97,14 +99,14 @@ class FacetecModule(private val reactContext: ReactApplicationContext) :
     config: ReadableMap,
     kind: String,
     promise: Promise,
-    launch: (FaceTecSDKInstance, android.app.Activity, FacetecSessionProcessor) -> Unit,
+    launch: (FaceTecSDKInstance, Activity, FacetecSessionProcessor) -> Unit,
   ) {
     val sdk = sdkInstance
     if (sdk == null) {
       promise.reject("facetec_not_initialized", "FaceTec no inicializado")
       return
     }
-    val activity = currentActivity
+    val activity = reactContext.currentActivity
     if (activity == null) {
       promise.reject("facetec_no_activity", "No hay actividad en primer plano")
       return
