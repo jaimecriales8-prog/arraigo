@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import SorpresaButton from '@/components/SorpresaButton'
 import EnviarMensaje from '@/components/EnviarMensaje'
+import AgregarNota from './AgregarNota'
 import ReasignarTecnico from './ReasignarTecnico'
 import EditarCaso from './EditarCaso'
 import HistorialTabla from './HistorialTabla'
@@ -46,7 +47,8 @@ async function getCaso(id: string) {
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
       surprise_verifications(id, status, created_at, expires_at, checkins(id, overall_passed, face_photo_url, scene_photo_url)),
-      case_messages(id, message, push_sent, read_at, created_at, sender:profiles!case_messages_sent_by_fkey(full_name))
+      case_messages(id, message, push_sent, read_at, created_at, sender:profiles!case_messages_sent_by_fkey(full_name)),
+      case_notes(id, note, created_at, author:profiles!case_notes_author_id_fkey(full_name))
     `)
     .eq('id', id)
     .single()
@@ -288,6 +290,44 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
                     }}>
                       {m.read_at ? 'Leído' : 'No leído'}
                     </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* Notas de seguimiento (solo staff, el imputado no las ve) */}
+      {(() => {
+        const notas = ((caso as any).case_notes ?? [])
+          .slice()
+          .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        const fmt = (iso: string) =>
+          new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
+        return (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', marginTop: 20 }}>
+            <div style={{ padding: '20px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 600 }}>Notas de seguimiento</h2>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>Internas — no visibles para el imputado</p>
+              </div>
+              <AgregarNota caseId={caso.id} />
+            </div>
+            {notas.length === 0 ? (
+              <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
+                Sin notas registradas aún.
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                {notas.map((n: any, i: number) => (
+                  <div key={n.id} style={{
+                    padding: '14px 24px', borderBottom: i < notas.length - 1 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <div style={{ fontSize: 13.5, marginBottom: 4, whiteSpace: 'pre-wrap' }}>{n.note}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                      {fmt(n.created_at)} · {n.author?.full_name ?? '—'}
+                    </div>
                   </div>
                 ))}
               </div>

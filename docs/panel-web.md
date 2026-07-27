@@ -43,6 +43,7 @@ Detalle del caso con:
 - **Gestionar caso** (`EditarCaso.tsx`, solo judicial/super_admin) — cambiar estado (activo/suspendido/cerrado), horarios de check-in y radio del geofence, junto al bloque de reasignar técnico.
 - **Última actividad del dispositivo** — `profiles.last_seen_at` del imputado, coloreado (verde <4h, ámbar <12h, rojo >12h o "Sin reportar aún"). Ver heartbeat abajo.
 - **Mensajes al imputado** (`EnviarMensaje.tsx`) — botón "💬 Enviar mensaje" (texto libre, no exige verificación de presencia) + historial con estado leído/no leído. Ver mensajería abajo.
+- **Notas de seguimiento** (`AgregarNota.tsx`) — botón "📝 Agregar nota", internas para el staff (judicial/operador/técnico/super_admin), el imputado no las ve. Para observaciones tipo "habló con la familia", "pendiente audiencia el 15" — distinto de los mensajes, que sí llegan al imputado.
 - **Nivel de peligrosidad** — badge 1-5 (escala de color verde→rojo, ver `src/lib/danger.ts`), editable en "Gestionar caso".
 - Historial de check-ins con scores de cara, escena y estado GPS (paginado)
 
@@ -90,6 +91,9 @@ Genera signed URLs (5 min TTL) para `face_photo_url`, `scene_photo_url` del chec
 
 ### POST /api/checkins/excusar
 Marca un check-in (`missed`/`failed`/`completed` fallido) como `excused` con nota (rol judicial/super_admin, mismo org). Resuelve automáticamente las alertas con ese `checkin_id`.
+
+### POST /api/casos/notas
+Crea una nota de seguimiento interna en un caso (rol judicial/operador/tecnico/super_admin, mismo org). No es visible para el imputado — a diferencia de `case_messages`. Registra auditoría (`case.note_added`).
 
 ### POST /api/casos/editar
 Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM), `geofence_radius_m` y/o `danger_level` (1-5) de un caso (rol judicial/super_admin, mismo org). Campos opcionales — solo se actualiza lo enviado.

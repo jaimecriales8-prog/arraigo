@@ -23,6 +23,7 @@ const ACTION_LABEL: Record<string, string> = {
   'user.created': 'Usuario creado',
   'user.password_reset': 'Contraseña restablecida',
   'alert.resolved': 'Alerta resuelta',
+  'case.note_added': 'Nota de seguimiento agregada',
 }
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'Super Admin', judicial: 'Entidad Judicial', tecnico: 'Técnico', operador: 'Operador', imputado: 'Imputado',
@@ -35,6 +36,7 @@ const ACTION_COLOR: Record<string, string> = {
   'user.created': 'var(--success)',
   'user.password_reset': 'var(--warning)',
   'alert.resolved': 'var(--success)',
+  'case.note_added': 'var(--accent)',
 }
 
 const fmt = (iso: string) =>
@@ -57,6 +59,8 @@ function detalle(a: Entrada): string {
       return `Usuario: ${p.email ?? p.full_name ?? '—'}`
     case 'alert.resolved':
       return `Tipo: ${p.type ?? '—'}`
+    case 'case.note_added':
+      return `${p.preview ?? ''}`
     case 'case.technician_reassigned':
       return 'Nuevo técnico asignado'
     default:
