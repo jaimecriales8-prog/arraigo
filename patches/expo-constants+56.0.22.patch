@@ -1,0 +1,13 @@
+diff --git a/node_modules/expo-constants/scripts/get-app-config-android.gradle b/node_modules/expo-constants/scripts/get-app-config-android.gradle
+index 7758672..1cccbd9 100644
+--- a/node_modules/expo-constants/scripts/get-app-config-android.gradle
++++ b/node_modules/expo-constants/scripts/get-app-config-android.gradle
+@@ -5,7 +5,7 @@ import org.apache.tools.ant.taskdefs.condition.Os
+ 
+ def expoConstantsDir = project.providers.exec {
+   workingDir(projectDir)
+-  commandLine("node", "-e", "console.log(require('path').dirname(require.resolve('expo-constants/package.json')));")
++  commandLine("/Users/jaimecriales/.nvm/versions/node/v22.22.3/bin/node", "-e", "console.log(require('path').dirname(require.resolve('expo-constants/package.json')));")
+ }.standardOutput.asText.get().trim()
+ 
+ def config = project.hasProperty("react") ? project.react : [];

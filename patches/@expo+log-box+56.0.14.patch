@@ -1,0 +1,13 @@
+diff --git a/node_modules/@expo/log-box/android/build.gradle b/node_modules/@expo/log-box/android/build.gradle
+index 1f2b8db..b7c9623 100644
+--- a/node_modules/@expo/log-box/android/build.gradle
++++ b/node_modules/@expo/log-box/android/build.gradle
+@@ -50,7 +50,7 @@ def expoLogBoxDirFile = project.projectDir.parentFile
+ def expoLogBoxDir = expoLogBoxDirFile.absolutePath
+ 
+ def config = project.hasProperty("react") ? project.react : [];
+-def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: ["node"]
++def nodeExecutableAndArgs = config.nodeExecutableAndArgs ?: ["/Users/jaimecriales/.nvm/versions/node/v22.22.3/bin/node"]
+ 
+ afterEvaluate {
+   def distDirFile = file("${expoLogBoxDir}/dist")

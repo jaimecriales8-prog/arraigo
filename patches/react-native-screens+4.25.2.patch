@@ -1,0 +1,13 @@
+diff --git a/node_modules/react-native-screens/android/build.gradle b/node_modules/react-native-screens/android/build.gradle
+index d3ede15..ecd0e23 100644
+--- a/node_modules/react-native-screens/android/build.gradle
++++ b/node_modules/react-native-screens/android/build.gradle
+@@ -59,7 +59,7 @@ def resolveReactNativeDirectory() {
+     // We're in non standard setup, e.g. monorepo - try to use node resolver to locate the react-native package.
+     String maybeRnPackagePath = providers.exec {
+         workingDir(rootDir)
+-        commandLine("node", "--print", "require.resolve('react-native/package.json')")
++        commandLine("/Users/jaimecriales/.nvm/versions/node/v22.22.3/bin/node", "--print", "require.resolve('react-native/package.json')")
+     }.standardOutput.asText.get().trim()
+ 
+     File nodeResolverRnDirFile = null

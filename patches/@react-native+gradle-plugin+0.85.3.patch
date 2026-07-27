@@ -1,0 +1,52 @@
+diff --git a/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/ReactExtension.kt b/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/ReactExtension.kt
+index 9616496..4903c1f 100644
+--- a/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/ReactExtension.kt
++++ b/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/ReactExtension.kt
+@@ -56,7 +56,7 @@ abstract class ReactExtension @Inject constructor(val project: Project) {
+    * installed and configured in your $PATH. Default: ["node"]
+    */
+   val nodeExecutableAndArgs: ListProperty<String> =
+-      objects.listProperty(String::class.java).convention(listOf("node"))
++      objects.listProperty(String::class.java).convention(listOf("/Users/jaimecriales/.nvm/versions/node/v22.22.3/bin/node"))
+ 
+   /** The command to use to invoke bundle. Default is `bundle` and will be invoked on [root]. */
+   val bundleCommand: Property<String> = objects.property(String::class.java).convention("bundle")
+diff --git a/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/internal/PrivateReactExtension.kt b/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/internal/PrivateReactExtension.kt
+index 26174c0..6b6c157 100644
+--- a/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/internal/PrivateReactExtension.kt
++++ b/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/internal/PrivateReactExtension.kt
+@@ -54,7 +54,7 @@ abstract class PrivateReactExtension @Inject constructor(project: Project) {
+       objects.directoryProperty().convention(root.dir("node_modules/react-native"))
+ 
+   val nodeExecutableAndArgs: ListProperty<String> =
+-      objects.listProperty(String::class.java).convention(listOf("node"))
++      objects.listProperty(String::class.java).convention(listOf("/Users/jaimecriales/.nvm/versions/node/v22.22.3/bin/node"))
+ 
+   val codegenDir: DirectoryProperty =
+       objects.directoryProperty().convention(root.dir("node_modules/@react-native/codegen"))
+diff --git a/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/PathUtils.kt b/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/PathUtils.kt
+index fc5a9a6..42d5243 100644
+--- a/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/PathUtils.kt
++++ b/node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/PathUtils.kt
+@@ -87,7 +87,7 @@ private fun detectCliFile(
+   // 2. node module path
+   val nodeProcess =
+       project.providers.exec { exec ->
+-        exec.commandLine("node", "--print", "require.resolve('react-native/cli');")
++        exec.commandLine("/Users/jaimecriales/.nvm/versions/node/v22.22.3/bin/node", "--print", "require.resolve('react-native/cli');")
+         exec.workingDir(reactNativeRoot)
+       }
+ 
+diff --git a/node_modules/@react-native/gradle-plugin/settings.gradle.kts b/node_modules/@react-native/gradle-plugin/settings.gradle.kts
+index b3c46a3..0fa5df3 100644
+--- a/node_modules/@react-native/gradle-plugin/settings.gradle.kts
++++ b/node_modules/@react-native/gradle-plugin/settings.gradle.kts
+@@ -13,7 +13,7 @@ pluginManagement {
+   }
+ }
+ 
+-plugins { id("org.gradle.toolchains.foojay-resolver-convention").version("0.5.0") }
++plugins { id("org.gradle.toolchains.foojay-resolver-convention").version("0.8.0") }
+ 
+ include(
+     ":react-native-gradle-plugin",

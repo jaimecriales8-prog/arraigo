@@ -22,3 +22,5 @@ supabase/.temp
 
 # Claves APNs — nunca versionar
 *.p8
+.yarn/install-state.gz
+.pnp.*
