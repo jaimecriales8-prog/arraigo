@@ -2,8 +2,18 @@
 
 ## Stack
 - Expo SDK 56 + Expo Router v4
-- React Native (iOS first)
+- React Native (iOS first, Android en construcción — ver abajo)
 - Supabase JS client con SecureStore
+
+## Android (2026-07-26, en construcción)
+Proyecto nativo generado con `npx expo prebuild --platform android` (carpeta `android/`, igual que `ios/`: no se versiona completa, solo los archivos custom vía `git add -f`, mismo patrón que iOS). `app.json` ya traía la config de Android (package `co.arraigo.app`, permisos, íconos adaptativos) desde el inicio.
+
+**Ya funciona sin trabajo adicional:** todo el flujo de check-in por acelerómetro, GPS, cámara (selfie/escena), mapa, mensajería, notas y heartbeat — son APIs de Expo que ya son cross-platform.
+
+**Pendiente:**
+- **FaceTec** — el puente nativo (`ios/Arraigo/Facetec/*.swift`) solo existe para iOS. Se generó el equivalente Kotlin (`android/app/src/main/java/co/arraigo/app/facetec/FacetecModule.kt` + `FacetecPackage.kt`, ya registrado en `MainApplication.kt`) pero el cuerpo de `initialize`/`enroll`/`authenticate` está stub (rechaza con `facetec_not_implemented`) hasta tener el SDK de FaceTec para Android. Detalle completo en `android/FACETEC_SETUP_ANDROID.md`. Mientras tanto, el toggle `facetecEnabled` por organización permite operar con el liveness por acelerómetro.
+- **Push remoto** — el sistema actual (`trigger-surprise`, `send-message`) habla directo con APNs (solo iOS). En Android, `getDevicePushTokenAsync()` fallará sin un proyecto de Firebase configurado (`google-services.json`) — el código ya captura ese error y no rompe nada (`usePushNotifications.ts`), las sorpresas y mensajes siguen funcionando por polling. Para push real en Android hace falta crear un proyecto Firebase (FCM) y agregar el envío FCM en las Edge Functions junto al de APNs.
+- **Build/firma** — requiere Android Studio + SDK instalados localmente (`ANDROID_HOME`), y un keystore de firma para builds de release. Sin Play Store, se puede probar instalando el APK directo en el teléfono (`npx expo run:android` en modo debug, o generar el APK de release y transferirlo).
 
 ## Estructura de archivos
 ```

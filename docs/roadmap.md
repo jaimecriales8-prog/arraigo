@@ -60,6 +60,11 @@ Botón "🔑 Restablecer contraseña" en `/dashboard/usuarios` (por usuario) y e
 Botón "📝 Agregar nota" en el detalle del caso — observaciones internas del staff (habló con la familia, pendiente audiencia, etc.), separadas de la mensajería porque esas sí llegan al imputado. Tabla `case_notes` nueva, RLS solo para staff (judicial/operador/tecnico/super_admin); registra auditoría (`case.note_added`).
 → `apps/web/src/app/dashboard/casos/[id]/AgregarNota.tsx`, `apps/web/src/app/api/casos/notas/route.ts`, `supabase/migrations/20260726_015_notas_seguimiento.sql`
 
+## 🔨 En progreso
+
+### 14. App Android
+Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android generado como stub (`FacetecModule.kt`) — pendiente el SDK real de FaceTec y Android Studio instalado localmente para compilar y probar. Push remoto en Android necesitará Firebase (FCM) más adelante; mientras tanto degrada a polling sin romper nada. Detalle en `docs/app-movil.md` y `apps/mobile/android/FACETEC_SETUP_ANDROID.md`.
+
 ## ⏸️ Diferido
 
 _(vacío)_
