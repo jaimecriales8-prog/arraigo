@@ -11,13 +11,21 @@
 
 ## Setup inicial (una sola vez)
 
+El monorepo usa **Yarn 4 (Berry)** con `nodeLinker: node-modules` fijado en
+`.yarnrc.yml` — **no usar `npm install`** en la raíz (rompe el layout que
+React Native/Expo/Gradle necesitan; ver nota de PnP abajo).
+
 ```bash
 # 1. Clonar el repo
 git clone <repo-url>
 cd arraigo
 
-# 2. Instalar dependencias del monorepo
-npm install
+# 2. Instalar dependencias del monorepo (yarn, no npm)
+corepack enable   # si `yarn` no está disponible directamente
+yarn install
+# Esto también reaplica automáticamente los patches de patch-package
+# (postinstall) — necesarios para que Gradle pueda invocar `node` en
+# builds de Android. Ver docs/app-movil.md si algo falla acá.
 
 # 3. Variables de entorno — app móvil
 cp apps/mobile/.env.example apps/mobile/.env.local
@@ -27,6 +35,13 @@ cp apps/mobile/.env.example apps/mobile/.env.local
 cp apps/web/.env.example apps/web/.env.local
 # Editar con las keys del proyecto Supabase
 ```
+
+> ⚠️ **Si alguna vez ves que `node_modules` desaparece por completo** después
+> de un `yarn install` (reemplazado por `.pnp.cjs`/`.pnp.loader.mjs`),
+> significa que `.yarnrc.yml` se perdió o cambió — restaurarlo con
+> `nodeLinker: node-modules` y volver a instalar. Yarn 4 usa Plug'n'Play por
+> defecto si no está ese archivo, y eso borra `node_modules` (pasó una vez,
+> ver `docs/app-movil.md` → "Entorno de desarrollo Android").
 
 ## Supabase
 
@@ -70,6 +85,29 @@ Escanea el QR con Expo Go en tu celular. Asegúrate de que el celular y el Mac e
 Email:    prueba.imputado@arraigo.co
 Password: Arraigo2026!
 ```
+
+## Compilar la app móvil para Android (nativo)
+
+Requiere Android Studio instalado (trae su propio JDK). Detalle completo,
+incluyendo todos los problemas de entorno ya resueltos (PATH de `node`,
+Yarn PnP, versión de Gradle), en `docs/app-movil.md` → sección "Entorno de
+desarrollo Android". Resumen rápido:
+
+```bash
+cd /Users/jaimecriales/Sites/arraigo
+yarn install   # reaplica los patches de node automáticamente
+
+mkdir -p apps/mobile/android/app/libs
+cp ~/Downloads/FaceTecSDK-android-10.1.9/facetec-sdk-10.1.9.aar apps/mobile/android/app/libs/
+
+cd apps/mobile/android
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+./gradlew :app:assembleDebug
+```
+
+El APK queda en `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` — se puede enviar directo a un teléfono para instalar (sin pasar por Google Play).
 
 ## Correr el panel web
 

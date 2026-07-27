@@ -14,6 +14,7 @@ Plataforma SaaS B2B para Colombia que permite a entidades judiciales (INPEC, juz
 | [Seguridad](docs/seguridad.md) | RLS, anti-spoofing, cadena de custodia |
 | [Desarrollo local](docs/desarrollo-local.md) | Setup del entorno de desarrollo |
 | [Deployment](docs/deployment.md) | Cómo desplegar a producción |
+| [Roadmap](docs/roadmap.md) | Backlog, qué está hecho y qué falta |
 
 ## Estructura del monorepo
 

@@ -1,5 +1,21 @@
 # Base de Datos — Arraigo
 
+> ⚠️ **Este documento describe el esquema original de diseño y no se ha
+> mantenido sincronizado con las migraciones aplicadas después (ver
+> `supabase/migrations/`, que es la fuente de verdad real del esquema).
+> Cambios relevantes desde el diseño original, no reflejados abajo:**
+> - `cases` ganó `address`, `city`, `department`, `location` (PostGIS), `danger_level` (1-5), `checkin_times` (array), `geofence_radius_m` — en vez de los campos `home_*`/`checkin_frequency_hours` listados abajo.
+> - `checkins` tiene un estado `excused` adicional (ver `20260725_010`).
+> - Tabla nueva **`case_messages`** — mensajería libre al imputado (`20260725_012_mensajeria_preso.sql`).
+> - Tabla nueva **`case_notes`** — notas de seguimiento internas del staff, no visibles al imputado (`20260726_015_notas_seguimiento.sql`).
+> - `profiles` ganó `last_seen_at` (heartbeat de dispositivo, `20260725_011`).
+> - `audit_log` (abajo) ya existía en el diseño original pero **nada escribía en ella** hasta `apps/web/src/lib/auditLog.ts` (agregado 2026-07-26) — ver `docs/panel-web.md` → Auditoría.
+> - Roles reales en uso: `judicial`, `tecnico`, `operador`, `imputado`, `super_admin` (el enum `user_role` fue alterado varias veces vía `ALTER TYPE ... ADD VALUE` en migraciones posteriores — no coincide 1:1 con lo documentado abajo).
+>
+> Para el estado real y completo del esquema, revisar los archivos en
+> `supabase/migrations/` en orden cronológico, o pedirle a Claude que corra
+> una consulta contra el proyecto si hace falta certeza total.
+
 ## Proyecto Supabase
 - URL: https://shusqumfugjkwhuwyyvf.supabase.co
 - Ref: shusqumfugjkwhuwyyvf

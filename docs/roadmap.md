@@ -1,6 +1,6 @@
 # Roadmap — Arraigo
 
-Backlog priorizado de mejoras al MVP. Actualizado 2026-07-25.
+Backlog priorizado de mejoras al MVP. Actualizado 2026-07-26.
 
 ## ✅ Hecho
 
@@ -60,10 +60,20 @@ Botón "🔑 Restablecer contraseña" en `/dashboard/usuarios` (por usuario) y e
 Botón "📝 Agregar nota" en el detalle del caso — observaciones internas del staff (habló con la familia, pendiente audiencia, etc.), separadas de la mensajería porque esas sí llegan al imputado. Tabla `case_notes` nueva, RLS solo para staff (judicial/operador/tecnico/super_admin); registra auditoría (`case.note_added`).
 → `apps/web/src/app/dashboard/casos/[id]/AgregarNota.tsx`, `apps/web/src/app/api/casos/notas/route.ts`, `supabase/migrations/20260726_015_notas_seguimiento.sql`
 
+### 15. Selects de departamento/municipio en Nuevo caso (panel)
+El formulario de creación de caso tenía inputs de texto libre para ciudad/departamento — un typo rompía silenciosamente los filtros del mapa general (que comparan strings exactos). Ahora son selects encadenados (elegir departamento filtra el select de municipio) con el dataset completo DIVIPOLA (33 departamentos, 1110 municipios).
+→ `apps/web/src/lib/colombia.ts`, `apps/web/src/app/dashboard/casos/nuevo/CrearCasoForm.tsx`
+
 ## 🔨 En progreso
 
-### 14. App Android
-Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android portado desde iOS con integración real (SDK v10.1.9 ya agregado, `.aar` en `android/app/libs/`) — falta compilar y probar por primera vez, pendiente de que termine de instalarse Android Studio. Push remoto en Android necesitará Firebase (FCM) más adelante; mientras tanto degrada a polling sin romper nada. Detalle en `docs/app-movil.md` y `apps/mobile/android/FACETEC_SETUP_ANDROID.md`.
+### 14. App Android — build funcionando, falta probar en runtime
+Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android portado desde iOS con integración real (SDK v10.1.9, `.aar` en `android/app/libs/`, no versionado en git). **`./gradlew :app:assembleDebug` → BUILD SUCCESSFUL** — primer APK debug generado (`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, ~195MB) y entregado al usuario para instalar en el teléfono de un tercero de prueba. En el camino hubo que resolver varios problemas de entorno (Android Studio sin PATH a `node`, Yarn 4 borrando `node_modules` en modo PnP, Gradle 9.3.1 incompatible con un plugin) — documentados en detalle en `docs/app-movil.md` → "Entorno de desarrollo Android — problemas resueltos", para no tener que redescubrirlos.
+→ `apps/mobile/android/app/src/main/java/co/arraigo/app/facetec/`, `.yarnrc.yml`, `/patches/*.patch` (raíz del monorepo)
+
+**Pendiente dentro de este punto:**
+- Probar el flujo real de FaceTec (enroll/authenticate) en runtime — nunca se ha ejecutado, solo compilado.
+- Push remoto en Android (Firebase/FCM) — degrada a polling por ahora, sin romper nada.
+- Firma de release / decidir distribución (APK directo vs Google Play).
 
 ## ⏸️ Diferido
 

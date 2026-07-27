@@ -55,6 +55,28 @@ npx expo prebuild --platform ios --clean
 npx expo run:ios --device --configuration Release
 ```
 
+## App móvil → Android (nativo, sin Play Store por ahora)
+
+Ver detalle completo (incluyendo problemas de entorno resueltos) en
+`docs/app-movil.md` → "Entorno de desarrollo Android".
+
+```bash
+cd /Users/jaimecriales/Sites/arraigo
+yarn install   # reaplica patches de node automáticamente
+
+# Copiar el .aar de FaceTec (no versionado en git):
+mkdir -p apps/mobile/android/app/libs
+cp ~/Downloads/FaceTecSDK-android-10.1.9/facetec-sdk-10.1.9.aar apps/mobile/android/app/libs/
+
+cd apps/mobile/android
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export ANDROID_HOME="$HOME/Library/Android/sdk"
+export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
+./gradlew :app:assembleDebug
+```
+
+APK en `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` (~195MB, debug sin firmar). Se distribuye enviando el archivo directo — el que lo recibe debe permitir "instalar de fuentes desconocidas" al abrirlo. Sin Google Play Console todavía (pendiente decidir si se sube ahí más adelante).
+
 ## Edge Functions → Supabase
 
 ### Deploy
@@ -130,5 +152,7 @@ Ver [seguridad.md](seguridad.md). Auditoría 2026-07-02 (commit dd40d77): cerrad
 - [ ] `APNS_ENV=production` al pasar a TestFlight/App Store
 - [ ] Licencia FaceTec Server (producción real con presos)
 - [ ] Rate limiting en Edge Functions
-- [ ] Android (puente FaceTec + FCM)
+- [x] Android — build nativo compilando (`BUILD SUCCESSFUL`), puente FaceTec integrado y compilando, primer APK debug generado y entregado a un tester externo
+- [ ] Android — probar flujo real de FaceTec (enroll/authenticate) en runtime
+- [ ] Android — push remoto (FCM/Firebase), hoy degrada a polling
 - [ ] Dominio personalizado (app.arraigo.co)
