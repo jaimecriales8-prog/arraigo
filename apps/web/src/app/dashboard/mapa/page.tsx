@@ -13,14 +13,14 @@ async function getCasos() {
     { cookies: { getAll: () => cookieStore.getAll(), setAll: () => {} } }
   )
 
+  // mapa_casos: vista que ya trae el último check-in por caso (LATERAL join
+  // en SQL) — antes se traía el historial completo de checkins anidado por
+  // caso solo para calcular el más reciente en JS. Con 50k casos y meses de
+  // historial, eso son millones de filas por request.
   const { data, error } = await supabase
-    .from('cases')
-    .select(`
-      id, case_number, status, department, city, location, danger_level,
-      imputado:profiles!cases_imputado_id_fkey(full_name),
-      checkins(id, status, overall_passed, created_at)
-    `)
-    .order('created_at', { ascending: false })
+    .from('mapa_casos')
+    .select('*')
+    .order('case_number', { ascending: true })
 
   if (error) console.error('[mapa] error:', error.message)
   return data ?? []
@@ -31,19 +31,15 @@ export default async function MapaPage() {
 
   const casos = casosRaw.map((c: any) => {
     const coords = c.location?.coordinates as [number, number] | undefined
-    const checkins = c.checkins ?? []
-    const ultimo = checkins
-      .slice()
-      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
 
     const cumplimiento = (() => {
       if (c.status !== 'active') return { label: 'Inactivo', color: 'var(--text-muted)' }
-      if (!ultimo) return { label: 'Sin check-ins', color: '#f59e0b' }
+      if (!c.ultimo_checkin_id) return { label: 'Sin check-ins', color: '#f59e0b' }
       const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
-      const ultimoDate = new Date(ultimo.created_at)
-      const aprobado = (ultimo.status === 'completed' || ultimo.status === 'passed') && ultimo.overall_passed
+      const ultimoDate = new Date(c.ultimo_checkin_created_at)
+      const aprobado = (c.ultimo_checkin_status === 'completed' || c.ultimo_checkin_status === 'passed') && c.ultimo_overall_passed
       if (ultimoDate >= hace24h && aprobado) return { label: 'Al día', color: '#16a34a' }
-      if (ultimoDate >= hace24h && ultimo.status === 'pending') return { label: 'Pendiente', color: '#f59e0b' }
+      if (ultimoDate >= hace24h && c.ultimo_checkin_status === 'pending') return { label: 'Pendiente', color: '#f59e0b' }
       if (ultimoDate >= hace24h) return { label: 'Verificación fallida', color: '#dc2626' }
       return { label: 'En mora', color: '#dc2626' }
     })()
@@ -54,7 +50,7 @@ export default async function MapaPage() {
       status: c.status,
       department: c.department ?? '',
       city: c.city ?? '',
-      imputado: c.imputado?.full_name ?? 'Sin nombre',
+      imputado: c.imputado_nombre ?? 'Sin nombre',
       danger_level: c.danger_level ?? 3,
       lat: coords ? coords[1] : null,
       lng: coords ? coords[0] : null,

@@ -155,44 +155,23 @@ export async function GET(req: Request) {
     orgNombre = org?.name ?? null
   }
 
-  const casoIds = (casosRaw ?? []).map((c: any) => c.id)
-
-  let checkinsQuery = supabase
-    .from('checkins')
-    .select('id, case_id, status, overall_passed, created_at')
-    .in('case_id', casoIds.length > 0 ? casoIds : ['00000000-0000-0000-0000-000000000000'])
-  if (desde) checkinsQuery = checkinsQuery.gte('created_at', desde.toISOString())
-  const { data: checkinsRaw } = await checkinsQuery
-
-  let alertasQuery = supabase
-    .from('alerts')
-    .select('id, case_id, severity, is_resolved')
-    .in('case_id', casoIds.length > 0 ? casoIds : ['00000000-0000-0000-0000-000000000000'])
-    .eq('is_resolved', false)
-  const { data: alertasRaw } = await alertasQuery
-
-  const isPassed = (c: any) => (c.status === 'completed' || c.status === 'passed') && c.overall_passed
-  const isFailed = (c: any) => c.status === 'failed' || c.status === 'missed' ||
-    ((c.status === 'completed' || c.status === 'passed') && c.overall_passed === false)
-  const isExcused = (c: any) => c.status === 'excused'
-
-  const checkinsPorCaso = new Map<string, any[]>()
-  for (const chk of checkinsRaw ?? []) {
-    if (!checkinsPorCaso.has(chk.case_id)) checkinsPorCaso.set(chk.case_id, [])
-    checkinsPorCaso.get(chk.case_id)!.push(chk)
-  }
-  const alertasPorCaso = new Map<string, any[]>()
-  for (const a of alertasRaw ?? []) {
-    if (!alertasPorCaso.has(a.case_id)) alertasPorCaso.set(a.case_id, [])
-    alertasPorCaso.get(a.case_id)!.push(a)
-  }
+  // Agregación en SQL (reporte_consolidado_stats) — antes se traía cada
+  // check-in y cada alerta cruda de todos los casos de la org al servidor
+  // de Next.js para sumarlos en JS. Con 50k casos y meses de historial,
+  // eso son millones de filas por request; ahora Postgres devuelve una
+  // fila resumen por caso.
+  const { data: statsRaw } = await supabase.rpc('reporte_consolidado_stats', {
+    p_organization_id: me.role === 'super_admin' ? null : me.organization_id,
+    p_desde: desde ? desde.toISOString() : null,
+  })
+  const statsPorCaso = new Map((statsRaw ?? []).map((s: any) => [s.case_id, s]))
 
   const casos = (casosRaw ?? []).map((c: any) => {
-    const chks = checkinsPorCaso.get(c.id) ?? []
-    const total = chks.length
-    const aprobados = chks.filter(isPassed).length
-    const fallidos = chks.filter(isFailed).length
-    const excusados = chks.filter(isExcused).length
+    const s: any = statsPorCaso.get(c.id) ?? {}
+    const total = Number(s.total_checkins ?? 0)
+    const aprobados = Number(s.aprobados ?? 0)
+    const fallidos = Number(s.fallidos ?? 0)
+    const excusados = Number(s.excusados ?? 0)
     const denom = total - excusados
     const porcentaje = denom > 0 ? `${Math.round((aprobados / denom) * 100)}%` : 'N/A'
     return {
@@ -207,6 +186,8 @@ export async function GET(req: Request) {
       aprobados,
       fallidos,
       porcentaje,
+      alertasTotal: Number(s.alertas_total ?? 0),
+      alertasCriticas: Number(s.alertas_criticas ?? 0),
     }
   })
 
@@ -215,11 +196,12 @@ export async function GET(req: Request) {
   const totalCheckins = casos.reduce((s, c) => s + c.totalCheckins, 0)
   const aprobados = casos.reduce((s, c) => s + c.aprobados, 0)
   const fallidos = casos.reduce((s, c) => s + c.fallidos, 0)
-  const excusadosTotal = (checkinsRaw ?? []).filter(isExcused).length
+  const excusadosTotal = Array.from(statsPorCaso.values())
+    .reduce((s: number, x: any) => s + Number(x.excusados ?? 0), 0)
   const denomTotal = totalCheckins - excusadosTotal
   const porcentaje = denomTotal > 0 ? `${Math.round((aprobados / denomTotal) * 100)}%` : 'N/A'
-  const alertasTotal = (alertasRaw ?? []).length
-  const alertasCriticas = (alertasRaw ?? []).filter((a: any) => a.severity === 'critical').length
+  const alertasTotal = casos.reduce((s, c) => s + c.alertasTotal, 0)
+  const alertasCriticas = casos.reduce((s, c) => s + c.alertasCriticas, 0)
 
   const pdfBuffer = await renderToBuffer(
     <ReporteConsolidadoDocument
