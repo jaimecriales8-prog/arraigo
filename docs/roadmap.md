@@ -102,13 +102,15 @@ El usuario planteó originalmente un modelo de ownership individual (cada `judic
 
 **Fuera de alcance:** editar/desactivar una organización existente desde el panel (solo creación por ahora), transferir casos entre organizaciones.
 
-### 22. Revisión de seguridad — dos hallazgos corregidos (2026-07-27 a 2026-07-31)
-Auditoría completa del repo (RLS, rutas con service-role, edge functions, storage, mobile) encontró dos vulnerabilidades reales, ambas corregidas:
+### 22. Revisión de seguridad — tres hallazgos corregidos (2026-07-27 a 2026-08-01)
+Dos rondas de auditoría del repo (RLS, rutas con service-role, edge functions, storage, mobile) encontraron tres vulnerabilidades reales, las tres corregidas:
 
 - **HIGH — `case_messages` permitía al imputado alterar mensajes del funcionario.** La política RLS `UPDATE` (pensada solo para marcar `read_at`) filtraba filas pero no columnas — con la anon key + su propio JWT, el imputado podía modificar el contenido de cualquier mensaje de su caso vía PostgREST. Corregido restringiendo el `GRANT UPDATE` a solo la columna `read_at`.
   → `supabase/migrations/20260727_021_fix_case_messages_update_cols.sql`
 - **MEDIUM — API key de FaceTec hardcodeada como fallback en el código fuente.** `facetec-proxy` caía a un valor literal si `FACETEC_DEVICE_KEY` no estaba configurada — se confirmó (`npx supabase secrets list`) que esa variable nunca se había configurado en producción, es decir, el fallback SÍ se estaba usando en vivo. Se configuró el secret primero (mismo valor, sin downtime) y luego se quitó el fallback del código — ahora falla explícito (500) si falta.
   → `supabase/functions/facetec-proxy/index.ts`
+- **HIGH — `tecnico` podía escribir cualquier columna de su caso asignado, no solo las que usa la app.** Segunda ronda de revisión (tras agregar sitio de trabajo/onboarding/organizaciones) encontró que las políticas RLS de `tecnico` en `cases`/`profiles` (formalizadas en `20260731_025`, ya vivían en producción desde antes) restringen solo filas, no columnas — un técnico autenticado podía escribir `organization_id` (romper aislamiento multi-tenant), `geofence_radius_m` (inflar el radio para pasar el GPS trivialmente), o **`work_change_approved_at`/`work_change_approved_by`** (auto-aprobarse un cambio de sitio de trabajo, saltándose por completo la aprobación de `judicial` que se acababa de construir). No se pudo restringir por columna con `GRANT`/`REVOKE` porque `judicial`/`org_admin` comparten el mismo rol `authenticated` y sí necesitan escribir más columnas. Corregido eliminando el UPDATE directo del cliente y moviendo ese guardado a un edge function nuevo (`finalize-onboarding`, lista blanca explícita: `location`, `onboarding_done_at`, `status`, `reference_photo_url`), mismo patrón que `register-work-location`/`save-onboarding-details`.
+  → `supabase/migrations/20260801_026_restringir_rls_tecnico.sql`, `supabase/functions/finalize-onboarding/`, `apps/mobile/app/(tecnico)/onboarding/[caseId]/confirmar.tsx`
 
 ## 🔨 En progreso
 
