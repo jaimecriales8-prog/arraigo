@@ -169,31 +169,6 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
             </div>
           )}
           {(() => {
-            const citas = ((caso as any).medical_appointments ?? [])
-              .slice()
-              .sort((a: any, b: any) => a.appointment_date.localeCompare(b.appointment_date))
-            if (citas.length === 0) return null
-            const hoy = new Date().toISOString().slice(0, 10)
-            return (
-              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
-                  Citas médicas reportadas
-                </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {citas.map((cita: any) => (
-                    <div key={cita.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13.5 }}>
-                      <span style={{ color: cita.appointment_date < hoy ? 'var(--text-muted)' : 'var(--text)' }}>
-                        {new Date(cita.appointment_date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                        {' · '}{cita.start_time?.slice(0, 5)}–{cita.end_time?.slice(0, 5)}
-                        {cita.reason ? ` · ${cita.reason}` : ''}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )
-          })()}
-          {(() => {
             const c = caso as any
             const filas = ([
               ['Género', c.genero ?? ''],
@@ -302,6 +277,36 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               </div>
             ))}
           </div>
+          {(() => {
+            const citas = ((caso as any).medical_appointments ?? [])
+              .slice()
+              .sort((a: any, b: any) => a.appointment_date.localeCompare(b.appointment_date))
+            const hoy = new Date().toISOString().slice(0, 10)
+            return (
+              <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
+                  Citas médicas reportadas
+                </span>
+                {citas.length === 0 ? (
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Sin citas reportadas.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {citas.map((cita: any) => (
+                      <div key={cita.id} style={{ fontSize: 13.5 }}>
+                        <div style={{ color: cita.appointment_date < hoy ? 'var(--text-muted)' : 'var(--text)', fontWeight: 500 }}>
+                          {new Date(cita.appointment_date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                          {' · '}{cita.start_time?.slice(0, 5)}–{cita.end_time?.slice(0, 5)}
+                        </div>
+                        {cita.reason && (
+                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{cita.reason}</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })()}
         </div>
       </div>
 
