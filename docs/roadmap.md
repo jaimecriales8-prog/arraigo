@@ -93,6 +93,15 @@ El cruce de variables se calcula en TypeScript sobre un dataset ya acotado (una 
 
 **Fuera de alcance:** exportar a PDF, ajustar los mínimos de muestra desde la UI, combinaciones de 3+ variables (crecimiento combinatorio + riesgo de sobreajuste a ruido).
 
+### 21. Organizaciones separadas — decisión sobre jerarquía judicial (2026-07-31)
+Revisión (2026-07-27) confirmó cómo funciona hoy la jerarquía real: `super_admin` (todas las orgs) → dentro de una org, `judicial` y `operador` ven/gestionan **todos** los casos de la organización (scope por `organization_id`, sin ownership individual) → `tecnico` sí está acotado por caso (`cases.technician_id = auth.uid()`) → `imputado` ve solo su propio caso. La columna `cases.supervisor_id` (comentada como "juez/fiscal") existe en el schema pero no se usa en ningún lado del código — es un vestigio.
+
+El usuario planteó originalmente un modelo de ownership individual (cada `judicial` con su propio grupo de presos dentro de una misma org). Al presentarle la alternativa, decidió que el modelo correcto es **organizaciones separadas**: cada entidad judicial (juzgado, fiscalía, etc.) es su propia organización aislada — no ownership individual dentro de una org compartida. El aislamiento por `organization_id` ya existía en el sistema; lo que faltaba era la capacidad de crear organizaciones nuevas desde el panel (antes solo existía una, insertada a mano en una migración semilla).
+
+→ `apps/web/src/app/dashboard/organizaciones/page.tsx`, `CrearOrganizacionForm.tsx`, `apps/web/src/app/api/organizaciones/crear/route.ts` (solo `super_admin`, mismo patrón de auth/auditoría que `usuarios/crear`)
+
+**Fuera de alcance:** editar/desactivar una organización existente desde el panel (solo creación por ahora), transferir casos entre organizaciones.
+
 ## 🔨 En progreso
 
 ### 14. App Android — build funcionando, falta probar en runtime
@@ -125,8 +134,4 @@ Revisión de código (2026-07-27) identificó 8 riesgos concretos de escala: `sc
 
 ## ⏸️ Diferido
 
-### 17. Ownership individual de casos para `judicial` (posible rediseño de jerarquía)
-Revisión (2026-07-27) confirmó cómo funciona hoy la jerarquía real: `super_admin` (todas las orgs) → dentro de una org, `judicial` y `operador` ven/gestionan **todos** los casos de la organización (scope por `organization_id`, sin ownership individual) → `tecnico` sí está acotado por caso (`cases.technician_id = auth.uid()`, RLS en `supabase/migrations/20260617_001_schema.sql:390,399`) → `imputado` ve solo su propio caso. La columna `cases.supervisor_id` (comentada como "juez/fiscal") existe en el schema pero no se usa en ningún lado del código de la app (sin UI de asignación, sin query que filtre por ella) — es un vestigio, no un mecanismo activo.
-
-El usuario planteó un modelo distinto: que cada `judicial` tenga su propio grupo de presos (ownership individual, no solo por organización). Esto **no existe hoy** y sería un cambio de diseño: decidir si se reutiliza `supervisor_id` o se crea una estructura nueva, y ajustar las políticas RLS de `cases`, `checkins`, `alerts`, `messages`, etc. para filtrar por el judicial asignado en vez de solo por `organization_id`.
-**Pendiente:** decisión del usuario sobre si se implementa este ownership individual, y si es así, definir el mecanismo antes de tocar RLS.
+_(vacío)_
