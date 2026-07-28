@@ -141,7 +141,7 @@ Build nativo (Xcode), NO EAS. Bundle ID `co.arraigo.app`, Team `325CA3VJ5P`.
 2. Organizer → **Distribute App → TestFlight** → Upload.
 3. App Store Connect → TestFlight → **Internal Testing**: agregar tester (Apple ID) en Users and Access; instala vía app TestFlight.
 
-**Push en TestFlight:** TestFlight usa APNs de PRODUCCIÓN. Para que las sorpresas lleguen, cambiar secret `APNS_ENV=production` (el entitlement pasa a production solo al archivar para distribución). Con `sandbox`, en TestFlight las sorpresas solo se detectan por polling (app abierta).
+**Push en TestFlight:** TestFlight usa APNs de PRODUCCIÓN. Para que las sorpresas lleguen, el secret `APNS_ENV` debe estar en `production` (el entitlement pasa a production solo al archivar para distribución). Con `sandbox`, en TestFlight las sorpresas solo se detectan por polling (app abierta) — este fue exactamente el síntoma que se dio el 2026-07-28 (push no llegaba con la app cerrada) y se confirmó `APNS_ENV=production` como el fix. **`APNS_ENV=production` ya está seteado en el proyecto** — si en otra sesión el push deja de llegar con la app cerrada en TestFlight, verificar esto primero antes de asumir otra causa (ej. token vencido, permisos del dispositivo).
 
 ## Seguridad
 Ver [seguridad.md](seguridad.md). Auditoría 2026-07-02 (commit dd40d77): cerradas 5 vulns (escena self-compare, checkpoint sin validar, trigger-surprise IDOR, auto-completar sorpresa, replay FaceTec). Pendientes bajos: rate limiting, CORS `*`, GPS spoofing.
