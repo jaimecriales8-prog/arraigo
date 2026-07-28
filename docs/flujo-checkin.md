@@ -52,7 +52,7 @@
 ## Edge Function `process-checkin` (v. producción actual)
 
 1. **Auth**: valida JWT del imputado; verifica que el checkin pertenece a su caso.
-2. **GPS**: Haversine vs `cases.location` (PostGIS GeoJSON), pasa si ≤ `geofence_radius_m`. `gpsIsMock` ⇒ falla + alerta `critical`.
+2. **GPS**: el imputado elige manualmente "Casa" o "Trabajo" en la pantalla de GPS (el botón "Trabajo" solo aparece si `cases.work_registered_at` no es null — ver `docs/roadmap.md` punto 18). Según `locationType` recibido, valida Haversine contra `cases.location`/`geofence_radius_m` (casa) o `cases.work_location`/`work_geofence_radius_m` (trabajo). Sin lógica de horarios — es siempre elección manual. `location_type` queda grabado en el `checkins` insertado. `gpsIsMock` ⇒ falla + alerta `critical`.
 3. **Escena (IA)**: genera signed URLs (60 s) de la foto tomada y la del checkpoint (`checkpoints.photo_url`, normalizado URL→path) y pregunta a **GPT-4o-mini Vision** si es el mismo espacio → `{match, score}`. **Si la verificación falla por cualquier motivo, el check-in FALLA** (no pasa por defecto). Solo se salta si no hay `OPENAI_API_KEY` o no hay checkpoint.
 4. **Cara**: con FaceTec valida `livenessPassed && matchScore ≥ 80`; sin FaceTec, placeholder (siempre pasa — pendiente verificación server-side).
 5. **Score**: GPS 50 % + Escena 30 % + Cara 20 %. `overall_passed` = las tres pasan.

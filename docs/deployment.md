@@ -75,7 +75,13 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 ./gradlew :app:assembleDebug
 ```
 
-APK en `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` (~195MB, debug sin firmar). Se distribuye enviando el archivo directo — el que lo recibe debe permitir "instalar de fuentes desconocidas" al abrirlo. Sin Google Play Console todavía (pendiente decidir si se sube ahí más adelante).
+APK debug en `apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk` (~195MB, sin firmar) — **requiere Metro corriendo** (`npx expo start`) en la misma red, si no da "Unable to load script". Para probar suelto en el teléfono de alguien más, usar release en su lugar:
+
+```bash
+./gradlew :app:assembleRelease
+```
+
+APK release en `apps/mobile/android/app/build/outputs/apk/release/app-release.apk` (~115MB) — JS empaquetado adentro, no depende de Metro. Firmado con el keystore de debug como temporal (válido para pruebas, no sirve para Play Store). Se distribuye enviando el archivo directo — el que lo recibe debe permitir "instalar de fuentes desconocidas" al abrirlo. Sin Google Play Console todavía (pendiente decidir si se sube ahí más adelante).
 
 ## Edge Functions → Supabase
 
@@ -148,11 +154,11 @@ Ver [seguridad.md](seguridad.md). Auditoría 2026-07-02 (commit dd40d77): cerrad
 - [x] Push APNs de sorpresas (sandbox) — probado
 - [x] FaceTec liveness 3D E2E con veredicto server-side (proxy)
 - [x] Auditoría de seguridad — críticos/altos cerrados
-- [ ] Build TestFlight subido + tester interno
+- [x] Build TestFlight subido (build number 4, 2026-07-27) — pendiente confirmar tester interno instalado y probando
 - [ ] `APNS_ENV=production` al pasar a TestFlight/App Store
 - [ ] Licencia FaceTec Server (producción real con presos)
 - [ ] Rate limiting en Edge Functions
-- [x] Android — build nativo compilando (`BUILD SUCCESSFUL`), puente FaceTec integrado y compilando, primer APK debug generado y entregado a un tester externo
+- [x] Android — build release compilando (`BUILD SUCCESSFUL`), puente FaceTec integrado y compilando, APK release (no debug) entregado a un tester externo, reconstruido con sitio de trabajo + datos adicionales del onboarding + género
 - [ ] Android — probar flujo real de FaceTec (enroll/authenticate) en runtime
 - [ ] Android — push remoto (FCM/Firebase), hoy degrada a polling
 - [ ] Dominio personalizado (app.arraigo.co)

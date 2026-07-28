@@ -46,6 +46,8 @@ Detalle del caso con:
 - **Notas de seguimiento** (`AgregarNota.tsx`) — botón "📝 Agregar nota", internas para el staff (judicial/operador/técnico/super_admin), el imputado no las ve. Para observaciones tipo "habló con la familia", "pendiente audiencia el 15" — distinto de los mensajes, que sí llegan al imputado.
 - **Nivel de peligrosidad** — badge 1-5 (escala de color verde→rojo, ver `src/lib/danger.ts`), editable en "Gestionar caso".
 - Historial de check-ins con scores de cara, escena y estado GPS (paginado)
+- **Sitio de trabajo** (2026-07-28) — bloque de solo lectura (dirección/foto/fecha de registro) si el imputado ya lo registró desde el celular; si hay una solicitud de cambio pendiente, aparece `AprobarCambioTrabajo.tsx` (solo judicial/super_admin) para aprobarla — habilita al imputado a volver a capturar. Ver `docs/roadmap.md` punto 18.
+- **Datos adicionales** (2026-07-29) — bloque de solo lectura con lo que el técnico capturó en el onboarding: perfil socioeconómico (género, estrato, nivel educativo, estado civil, ocupación, hijos, régimen de salud, tenencia de vivienda), contacto de emergencia, condiciones médicas. Solo se muestra si al menos un campo no es `NULL`. Ver `docs/roadmap.md` punto 19.
 
 ### /dashboard/casos (filtros)
 Además de la tabla, filtro por nivel de peligrosidad + búsqueda por nombre/expediente, client-side sobre el dataset ya cargado (`CasosLista.tsx`).
@@ -63,8 +65,12 @@ Módulo de gestión de usuarios de la organización:
 - Formulario para crear nuevos usuarios → **no envía correo**, devuelve `{ email, temp_password }` para entregar manualmente.
 
 ### /dashboard/auditoria
-Cadena de custodia de acciones del staff (rol judicial/operador/super_admin) — casos creados/editados, técnico reasignado, check-ins excusados, usuarios creados, contraseñas restablecidas, alertas resueltas. Filtro por tipo de acción + búsqueda por funcionario/expediente, paginado (15/página). Cada fila: fecha, acción, funcionario (+ rol), caso (link), detalle específico de la acción.
+Cadena de custodia de acciones del staff (rol judicial/operador/super_admin) — casos creados/editados, técnico reasignado, check-ins excusados, usuarios creados, contraseñas restablecidas, alertas resueltas, cambios de sitio de trabajo aprobados. Filtro por tipo de acción + búsqueda por funcionario/expediente, paginado (15/página). Cada fila: fecha, acción, funcionario (+ rol), caso (link), detalle específico de la acción.
 → `apps/web/src/app/dashboard/auditoria/page.tsx`, `AuditoriaLista.tsx`, tabla `audit_log` (ya existía en el esquema original, solo faltaba escribir en ella — ver `apps/web/src/lib/auditLog.ts`).
+
+### /dashboard/reportes/demografico (2026-07-30, solo judicial/super_admin)
+"Estudio demográfico" — reporte automático (no interactivo) que cruza las 10 variables demográficas/de riesgo del caso (género, estrato, nivel educativo, estado civil, ocupación, régimen de salud, tenencia de vivienda, hijos, movilidad reducida, peligrosidad) contra la tasa de cumplimiento, y muestra los 10 grupos con mejor y los 10 con peor cumplimiento (combinaciones de 1 y 2 variables). Filtra grupos con menos de 3 casos o 15 check-ins para no reportar ruido estadístico. Banner de advertencia permanente: correlación descriptiva, no causal. El cruce se calcula en TypeScript sobre el resultado de la función SQL `demografia_cumplimiento_stats()` (una fila por caso) — sin SQL dinámico. Ver `docs/roadmap.md` punto 20.
+→ `apps/web/src/app/dashboard/reportes/demografico/page.tsx`
 
 ## API Routes
 Todas las escrituras privilegiadas usan un cliente service-role **puro** (`createClient` sin cookies). OJO: `createServerClient` con cookies adjunta el JWT del usuario y RLS aplica como él → causaba "new row violates RLS policy".
@@ -100,6 +106,15 @@ Actualiza `status` (active/suspended/closed), `checkin_times` (array HH:MM), `ge
 
 ### GET /api/casos/[id]/reporte
 Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con info del caso, resumen de cumplimiento (aprobados / fallidos / excusados / % sobre check-ins no excusados), todas las alertas y el historial de check-ins con motivo. Query param `rango` (`all` default, `day`/`week`/`month`) filtra check-ins y alertas por `created_at`; el periodo elegido queda impreso en el encabezado del PDF. Requiere estar autenticado y ser de la misma organización (o `super_admin`). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.
+
+### POST /api/casos/aprobar-cambio-trabajo (2026-07-28)
+Aprueba una solicitud de cambio de sitio de trabajo hecha por el imputado desde el celular (rol judicial/super_admin, mismo org). Habilita al edge function `register-work-location` a aceptar una nueva captura. Registra auditoría (`work_location_change_approved`).
+
+### Edge Functions relacionadas con sitio de trabajo y onboarding (Supabase, no Next.js)
+Escrituras privilegiadas iniciadas desde la app móvil, mismo patrón que `process-checkin`: bearer token + service-role, se auto-autorizan verificando que el caller sea el dueño del caso (imputado) o el técnico asignado, sin depender de RLS directa.
+- `register-work-location` — registro inicial/cambio aprobado del sitio de trabajo del imputado (GPS + foto + verificación facial).
+- `request-work-location-change` — el imputado solicita cambiar su sitio de trabajo ya registrado.
+- `save-onboarding-details` — el técnico guarda los datos adicionales del onboarding (socioeconómico, contacto de emergencia, condiciones médicas, género).
 
 ### GET /api/reportes/consolidado
 Genera un PDF (`@react-pdf/renderer`, `runtime = 'nodejs'`) con métricas agregadas de todos los casos de la organización (o de todas si `super_admin`) y una tabla resumen por caso — sin el detalle check-in a check-in. Query param `rango` (`all` default, `day`/`month`/`year`) filtra check-ins por `created_at` para las métricas del periodo (las alertas sin resolver siempre son las vigentes, no filtran por rango). Devuelve `Content-Type: application/pdf` con `Content-Disposition: attachment`.

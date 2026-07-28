@@ -10,12 +10,14 @@ Proyecto nativo generado con `npx expo prebuild --platform android` (carpeta `an
 
 **Ya funciona sin trabajo adicional:** todo el flujo de check-in por acelerómetro, GPS, cámara (selfie/escena), mapa, mensajería, notas y heartbeat — son APIs de Expo que ya son cross-platform.
 
-**Estado actual (2026-07-26): `./gradlew :app:assembleDebug` → BUILD SUCCESSFUL.** El primer APK debug ya se generó y se envió al usuario para probar en el teléfono de un tercero. FaceTec (SDK real v10.1.9) compiló limpio contra el `.aar` real — ver detalle completo, incluyendo todos los problemas de entorno que hubo que resolver para llegar a esto, en **`android/FACETEC_SETUP_ANDROID.md`** y la sección "Entorno de desarrollo Android" más abajo en este documento.
+**Estado actual (2026-07-28): `./gradlew :app:assembleRelease` → BUILD SUCCESSFUL.** El build pasó de debug a **release** (empaqueta el JS adentro, no depende de Metro corriendo — el debug daba "Unable to load script" al instalarlo suelto en el teléfono de un tercero). Reconstruido dos veces desde entonces para incluir "sitio de trabajo" (punto 18 del roadmap), los datos adicionales del onboarding (punto 19) y el género para el estudio demográfico (punto 20) — el APK más reciente en `apps/mobile/android/app/build/outputs/apk/release/app-release.apk` (~115MB) ya trae todo eso. FaceTec (SDK real v10.1.9) compiló limpio contra el `.aar` real — ver detalle completo, incluyendo todos los problemas de entorno que hubo que resolver para llegar a esto, en **`android/FACETEC_SETUP_ANDROID.md`** y la sección "Entorno de desarrollo Android" más abajo en este documento.
+
+**iOS:** build number subido a 4 y archivado a TestFlight desde Xcode (2026-07-27) con las mismas features. Hubo que correr `pod install` limpio (borrar `Podfile.lock` + `Pods/` y reinstalar) porque `Pods` tenía referencias obsoletas a `react-native-worklets` (paquete ya removido de `node_modules` en una sesión anterior) que rompían el archive con "Build input file cannot be found".
 
 **Pendiente:**
 - **Probar el flujo real de FaceTec en un dispositivo/emulador** — enrolamiento (técnico) + autenticación (imputado check-in) contra el SDK real. El código compila pero nunca se ha ejecutado en runtime contra `facetec-proxy`; puede haber ajustes finos de la API real del SDK (nombres exactos de algún método/callback) que solo aparecen al correrlo.
 - **Push remoto** — el sistema actual (`trigger-surprise`, `send-message`) habla directo con APNs (solo iOS). En Android, `getDevicePushTokenAsync()` fallará sin un proyecto de Firebase configurado (`google-services.json`) — el código ya captura ese error y no rompe nada (`usePushNotifications.ts`), las sorpresas y mensajes siguen funcionando por polling. Para push real en Android hace falta crear un proyecto Firebase (FCM) y agregar el envío FCM en las Edge Functions junto al de APNs.
-- **Firma de release / distribución** — el APK actual es debug (sin firmar para producción, ~195MB). Para release real hace falta un keystore propio y decidir distribución (APK directo vs Google Play Console).
+- **Firma de release / distribución Android** — el APK release actual usa el keystore de debug como firma temporal (válido para pruebas, no para Play Store). Para distribución real hace falta un keystore propio y decidir canal (APK directo vs Google Play Console).
 
 ## Entorno de desarrollo Android — problemas resueltos (2026-07-26)
 Esta sección documenta en detalle los problemas de tooling que costó bastante diagnosticar, para que una sesión futura no tenga que redescubrirlos. Todos ya están resueltos y el fix está commiteado.
@@ -71,19 +73,34 @@ apps/mobile/
 │   ├── (auth)/
 │   │   ├── _layout.tsx
 │   │   └── login.tsx            # Pantalla de login
-│   └── (imputado)/
-│       ├── _layout.tsx
-│       ├── home.tsx             # Home del imputado
-│       └── checkin/
-│           ├── selfie.tsx       # Captura selfie (cámara frontal)
-│           ├── gps.tsx          # Captura GPS con anti-spoofing
-│           ├── escena.tsx       # Verificación de escena (cámara trasera)
-│           ├── resultado.tsx    # Resultado del check-in
-│           └── sorpresa.tsx     # Pantalla verificación sorpresa con countdown
+│   ├── (imputado)/
+│   │   ├── _layout.tsx
+│   │   ├── home.tsx             # Home del imputado
+│   │   ├── checkin/
+│   │   │   ├── selfie.tsx       # Captura selfie (cámara frontal)
+│   │   │   ├── gps.tsx          # Captura GPS + selector Casa/Trabajo
+│   │   │   ├── escena.tsx       # Verificación de escena (cámara trasera)
+│   │   │   ├── resultado.tsx    # Resultado del check-in
+│   │   │   └── sorpresa.tsx     # Pantalla verificación sorpresa con countdown
+│   │   └── trabajo/             # Registro de sitio de trabajo (punto 18 roadmap)
+│   │       ├── index.tsx        # Estado: registrar / solicitar cambio / pendiente
+│   │       └── registrar/
+│   │           ├── selfie.tsx   # Verificación facial (FaceTec o acelerómetro)
+│   │           ├── gps.tsx      # GPS del sitio de trabajo
+│   │           ├── foto.tsx     # Foto de escena del sitio
+│   │           └── confirmar.tsx
+│   └── (tecnico)/
+│       └── onboarding/[caseId]/
+│           ├── identidad.tsx
+│           ├── gps.tsx
+│           ├── scan.tsx
+│           ├── datos-adicionales.tsx  # Perfil socioeconómico/contacto/salud (punto 19 roadmap)
+│           └── confirmar.tsx
 ├── src/
 │   ├── hooks/
 │   │   ├── useAuth.ts           # Hook de autenticación Supabase
 │   │   ├── useCheckinStore.ts   # Zustand store para estado del check-in
+│   │   ├── useWorkLocationStore.ts  # Zustand store para registro de sitio de trabajo
 │   │   └── usePushNotifications.ts  # Registro y manejo de push notifications
 │   └── lib/
 │       ├── supabase.ts          # Cliente Supabase con SecureStore

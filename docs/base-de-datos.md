@@ -11,6 +11,9 @@
 > - `profiles` ganó `last_seen_at` (heartbeat de dispositivo, `20260725_011`).
 > - `audit_log` (abajo) ya existía en el diseño original pero **nada escribía en ella** hasta `apps/web/src/lib/auditLog.ts` (agregado 2026-07-26) — ver `docs/panel-web.md` → Auditoría.
 > - Roles reales en uso: `judicial`, `tecnico`, `operador`, `imputado`, `super_admin` (el enum `user_role` fue alterado varias veces vía `ALTER TYPE ... ADD VALUE` en migraciones posteriores — no coincide 1:1 con lo documentado abajo).
+> - `cases` ganó una segunda ubicación autorizada (sitio de trabajo): `work_address`, `work_location`, `work_geofence_radius_m`, `work_photo_url`, `work_registered_at`, `work_change_requested_at`, `work_change_reason`, `work_change_approved_at`, `work_change_approved_by` (`20260728_022_work_location.sql`); `checkins` ganó `location_type` (`home`/`work`).
+> - `cases` ganó 15 columnas de "datos adicionales del onboarding" + género: `genero`, `estrato`, `nivel_educativo`, `estado_civil`, `ocupacion`, `tiene_hijos`, `num_hijos`, `regimen_salud`, `tenencia_vivienda`, `contacto_emergencia_nombre`, `contacto_emergencia_telefono`, `contacto_emergencia_parentesco`, `movilidad_reducida`, `condiciones_medicas`, `medicamentos` (`20260729_023_datos_adicionales_onboarding.sql`, `20260730_024_genero_onboarding.sql`) — todas opcionales, capturadas por el técnico en el onboarding.
+> - Funciones SQL de agregación nuevas (todas `SECURITY INVOKER`, respetan RLS): `reporte_consolidado_stats()`, `demografia_cumplimiento_stats()`; vista `mapa_casos` (`WITH (security_invoker = true)`) — ver `20260727_018_agregaciones_escala.sql` y `20260730_024_genero_onboarding.sql`.
 >
 > Para el estado real y completo del esquema, revisar los archivos en
 > `supabase/migrations/` en orden cronológico, o pedirle a Claude que corra
