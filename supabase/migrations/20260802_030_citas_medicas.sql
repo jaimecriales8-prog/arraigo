@@ -38,11 +38,11 @@ CREATE OR REPLACE FUNCTION expire_missed_verifications()
 RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
-AS $$
+AS $func$
   WITH checkins_a_excusar AS (
     UPDATE checkins ck
       SET status = 'excused',
-          excused_reason = 'Cita médica reportada por el imputado (excusa automática)'
+          excused_reason = 'Cita medica reportada por el imputado (excusa automatica)'
     FROM cases c
     JOIN organizations o ON o.id = c.organization_id
     JOIN medical_appointments ma ON ma.case_id = c.id
@@ -65,7 +65,7 @@ AS $$
   alertas_checkins AS (
     INSERT INTO alerts (case_id, checkin_id, severity, type, message)
     SELECT case_id, id, 'warning', 'missed',
-           'No realizó la verificación en la ventana asignada'
+           'No realizo la verificacion en la ventana asignada'
     FROM checkins_vencidos
   ),
   sorpresas_vencidas AS (
@@ -77,6 +77,6 @@ AS $$
   )
   INSERT INTO alerts (case_id, checkin_id, severity, type, message)
   SELECT case_id, NULL, 'critical', 'surprise_missed',
-         'No respondió a la verificación sorpresa dentro del tiempo límite'
+         'No respondio a la verificacion sorpresa dentro del tiempo limite'
   FROM sorpresas_vencidas;
-$$;
+$func$;
