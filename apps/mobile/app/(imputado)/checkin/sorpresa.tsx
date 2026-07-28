@@ -45,7 +45,10 @@ export default function SorpresaScreen() {
 
     const now = new Date()
     const closes = new Date(expires_at)
-    const { data: checkin } = await supabase
+    // status NO se envía — la columna solo la puede escribir process-checkin
+    // (service-role); el cliente solo tiene GRANT sobre estas 5 columnas
+    // (ver 20260801_029), status queda en su default 'pending'.
+    const { data: checkin, error: checkinError } = await supabase
       .from('checkins')
       .insert({
         case_id: caso.case_id,
@@ -53,10 +56,11 @@ export default function SorpresaScreen() {
         scheduled_at: now.toISOString(),
         window_closes_at: closes.toISOString(),
         expires_at: closes.toISOString(),
-        status: 'pending',
       })
       .select('id')
       .single()
+
+    if (checkinError) { console.error('[sorpresa] insert checkin:', checkinError); return }
 
     if (!checkin) return
 
