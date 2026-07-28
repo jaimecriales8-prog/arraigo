@@ -108,14 +108,19 @@ Deno.serve(async (req) => {
     const processed =
       meta.wasProcessed === true ||
       (meta.success === true && meta.didError !== true && meta.result?.livenessProven === true)
-    await supabase.from('facetec_sessions').insert({
-      imputado_id: refID,
-      checkin_id: checkinId ?? null,
-      kind,
-      was_processed: processed,
-      error: upstream.ok ? (meta.error ? String(meta.error) : null) : `HTTP ${upstream.status}`,
-      result: meta,
-    })
+    // facetec_sessions.kind solo acepta 'enroll'/'auth' (CHECK constraint) —
+    // el handshake de inicialización del SDK (kind='init') no es una sesión
+    // de verificación real, no se registra.
+    if (kind === 'enroll' || kind === 'auth') {
+      await supabase.from('facetec_sessions').insert({
+        imputado_id: refID,
+        checkin_id: checkinId ?? null,
+        kind,
+        was_processed: processed,
+        error: upstream.ok ? (meta.error ? String(meta.error) : null) : `HTTP ${upstream.status}`,
+        result: meta,
+      })
+    }
 
     // Devolver la respuesta de FaceTec tal cual (el SDK necesita el responseBlob)
     return new Response(bodyText, { status: upstream.status, headers: cors })
