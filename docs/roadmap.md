@@ -146,6 +146,9 @@ La excusa automática se resuelve extendiendo `expire_missed_verifications()` (l
 
 → `supabase/migrations/20260802_030_citas_medicas.sql` (tabla `medical_appointments` + columnas en `organizations` + función actualizada), `supabase/functions/report-medical-appointment/`, `apps/web/src/app/dashboard/organizaciones/` (toggle + límite), `apps/web/src/app/dashboard/casos/[id]/page.tsx` (bloque de citas), `apps/mobile/app/(imputado)/citas/`
 
+**Bug encontrado y corregido en la primera prueba (2026-08-02):** la validación "solo por adelantado" interpretaba la fecha/hora en UTC (zona del runtime del edge function) en vez de `America/Bogota` (zona del caso) — una cita genuinamente futura en hora Colombia parecía ya pasada y se rechazaba. Mismo bug existía en la comparación SQL de la excusa automática (timestamptz comparado contra timestamp sin zona horaria). Corregido en ambos lados con el offset/`AT TIME ZONE` explícito, mismo patrón que `create_scheduled_checkins()`. Verificado funcionando en iPhone tras el fix.
+  → `supabase/migrations/20260802_031_fix_timezone_citas_medicas.sql`
+
 **Fuera de alcance:** justificación retroactiva, adjuntar soporte médico (foto de la orden), editar/cancelar una cita ya reportada, notificación push al staff cuando se reporta.
 
 ## 🔨 En progreso
