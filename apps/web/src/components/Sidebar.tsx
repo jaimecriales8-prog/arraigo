@@ -19,6 +19,7 @@ const navItems = [
   { href: '/dashboard/alertas', label: 'Alertas', icon: '🚨' },
   { href: '/dashboard/usuarios', label: 'Usuarios', icon: '👥', roles: ['judicial', 'super_admin', 'admin'] },
   { href: '/dashboard/auditoria', label: 'Auditoría', icon: '🕵️', roles: ['judicial', 'operador', 'super_admin'] },
+  { href: '/dashboard/reportes/demografico', label: 'Estudio demográfico', icon: '📈', roles: ['judicial', 'super_admin'] },
 ]
 
 export default function Sidebar() {

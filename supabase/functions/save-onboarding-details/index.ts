@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
     const body = await req.json()
     const {
-      caseId,
+      caseId, genero,
       estrato, nivelEducativo, estadoCivil, ocupacion, tieneHijos, numHijos, regimenSalud, tenenciaVivienda,
       contactoEmergenciaNombre, contactoEmergenciaTelefono, contactoEmergenciaParentesco,
       movilidadReducida, condicionesMedicas, medicamentos,
@@ -48,6 +48,7 @@ Deno.serve(async (req) => {
     const { error: updateError } = await supabase
       .from('cases')
       .update({
+        genero: genero ?? null,
         estrato: estrato ?? null,
         nivel_educativo: nivelEducativo ?? null,
         estado_civil: estadoCivil ?? null,

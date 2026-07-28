@@ -45,7 +45,7 @@ async function getCaso(id: string) {
       id, case_number, status, checkin_times, geofence_radius_m, address, city, location, danger_level,
       technician_id, organization_id, imputado_id,
       work_address, work_photo_url, work_registered_at, work_change_requested_at, work_change_reason, work_change_approved_at,
-      estrato, nivel_educativo, estado_civil, ocupacion, tiene_hijos, num_hijos, regimen_salud, tenencia_vivienda,
+      genero, estrato, nivel_educativo, estado_civil, ocupacion, tiene_hijos, num_hijos, regimen_salud, tenencia_vivienda,
       contacto_emergencia_nombre, contacto_emergencia_telefono, contacto_emergencia_parentesco,
       movilidad_reducida, condiciones_medicas, medicamentos,
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
@@ -170,6 +170,7 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
           {(() => {
             const c = caso as any
             const filas = ([
+              ['Género', c.genero ?? ''],
               ['Estrato', c.estrato ? String(c.estrato) : ''],
               ['Nivel educativo', c.nivel_educativo ?? ''],
               ['Estado civil', c.estado_civil ?? ''],

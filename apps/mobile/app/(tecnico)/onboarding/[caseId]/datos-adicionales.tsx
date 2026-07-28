@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from 
 import { useRouter, useLocalSearchParams } from 'expo-router'
 
 interface Datos {
+  genero?: string
   estrato?: number
   nivelEducativo?: string
   estadoCivil?: string
@@ -19,6 +20,7 @@ interface Datos {
   medicamentos?: string
 }
 
+const GENERO = ['Mujer', 'Hombre', 'Otro', 'Prefiere no decir']
 const NIVEL_EDUCATIVO = ['Ninguno', 'Primaria', 'Bachiller', 'Técnico', 'Profesional', 'Posgrado']
 const ESTADO_CIVIL = ['Soltero(a)', 'Casado(a)', 'Unión libre', 'Separado(a)', 'Divorciado(a)', 'Viudo(a)']
 const OCUPACION = ['Empleado', 'Independiente', 'Desempleado', 'Estudiante', 'Ama de casa', 'Pensionado', 'Otro']
@@ -91,6 +93,10 @@ export default function OnboardingDatosAdicionales() {
         <View>
           <Text style={styles.sectionLabel}>Perfil socioeconómico</Text>
           <View style={{ gap: 14, marginTop: 10 }}>
+            <View>
+              <Text style={styles.fieldLabel}>Género</Text>
+              <Chips options={GENERO} value={datos.genero} onChange={(v) => set('genero', v)} />
+            </View>
             <View>
               <Text style={styles.fieldLabel}>Estrato</Text>
               <Chips options={['1', '2', '3', '4', '5', '6']} value={datos.estrato ? String(datos.estrato) : undefined}
