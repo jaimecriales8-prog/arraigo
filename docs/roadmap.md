@@ -14,7 +14,7 @@ Modal con selfie / escena capturada / foto de referencia por check-in, vía sign
 
 ### 6. Escalamiento de alertas (backend)
 Trigger en `checkins` que detecta 3 incumplimientos consecutivos (missed/failed/completed con overall_passed=false — `excused` no cuenta) y crea una alerta `escalation` con severidad crítica, visible de inmediato en `/dashboard/alertas`. **Decisión:** solo alerta en el panel por ahora — no hay proveedor de email/SMS configurado en el proyecto para notificar al juez fuera de él (se puede agregar después con Resend u otro si se define).
-→ `supabase/migrations/20260725_010_escalamiento_alertas.sql` (⚠️ pendiente de aplicar en el Dashboard de Supabase — no hay CLI linkeado en este entorno)
+→ `supabase/migrations/20260725_010_escalamiento_alertas.sql` (aplicada en Supabase el 2026-07-31)
 
 ### 3. Gestionar check-ins (panel + backend)
 - **Excusar una ausencia justificada** con nota → pasa a `checkin_status = 'excused'`, ya no cuenta como incumplimiento (ni para estadísticas ni para el streak de escalamiento) y resuelve automáticamente las alertas asociadas a ese check-in.
@@ -50,7 +50,7 @@ Botón "📄 Reporte consolidado" en el Dashboard con selector de periodo (todo 
 ### 11. Auditoría de acciones del staff (panel)
 Nueva pantalla `/dashboard/auditoria` (judicial/operador/super_admin) con la cadena de custodia de acciones: casos creados/editados, técnico reasignado, check-in excusado, usuario creado, contraseña restablecida, alerta resuelta. Cada acción queda con quién (funcionario + rol), cuándo, sobre qué caso y el detalle específico. La tabla `audit_log` ya existía en el esquema original (con RLS de solo lectura) pero nada escribía en ella — se agregó el helper `logAudit()` y se llama desde cada ruta de mutación. La resolución de alertas se movió de un `update` directo desde el cliente a `POST /api/alertas/resolver`, único punto donde se podía enganchar la auditoría.
 → `apps/web/src/lib/auditLog.ts`, `apps/web/src/app/dashboard/auditoria/`, `apps/web/src/app/api/alertas/resolver/route.ts`
-**Pendiente de aplicar en Supabase:** `supabase/migrations/20260726_014_audit_log_judicial_policy.sql` (agrega política RLS de lectura para el rol `judicial`, que no existía por un desfase entre el enum original y los roles reales de la app — el panel lee por service-role así que funciona igual sin aplicarla, pero conviene tenerla por defensa en profundidad).
+→ `supabase/migrations/20260726_014_audit_log_judicial_policy.sql` (política RLS de lectura para el rol `judicial`, que no existía por un desfase entre el enum original y los roles reales de la app — aplicada en Supabase el 2026-07-31).
 
 ### 12. Restablecer contraseña — staff e imputado (panel)
 Botón "🔑 Restablecer contraseña" en `/dashboard/usuarios` (por usuario) y en el detalle del caso, sección "Acceso del imputado". Genera una contraseña temporal nueva (`supabase.auth.admin.updateUserById`) y la muestra en un modal para entregarla por un canal seguro — mismo patrón que la creación de usuarios (no hay SMTP/proveedor de email configurado, así que no se envía automáticamente). Sin esto, un imputado que perdía el acceso a su cuenta no tenía forma de recuperarlo.
