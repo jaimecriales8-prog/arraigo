@@ -82,6 +82,17 @@ Al explorar el paso final del onboarding se encontró un problema pre-existente 
 
 **Pendiente (no resuelto en esta iteración):** verificar directo contra la BD si existe una política RLS viva de `UPDATE` para `tecnico` en `cases`/`profiles` que respalde el guardado que ya hace `confirmar.tsx` hoy — si no existe, ese guardado (location, reference_photo_url, checkpoints) podría estar fallando silenciosamente en producción y merece investigación aparte.
 
+### 20. Estudio demográfico — reporte de hallazgos rankeado (2026-07-30)
+Nueva página en el panel (`Dashboard → Estudio demográfico`, rol `judicial`/`super_admin`) que cruza automáticamente las 10 variables demográficas/de riesgo del caso (género, estrato, nivel educativo, estado civil, ocupación, régimen de salud, tenencia de vivienda, hijos, movilidad reducida, y el nivel de peligrosidad ya existente) contra la tasa de cumplimiento de check-ins, y muestra los 10 grupos con mejor y los 10 con peor cumplimiento (combinaciones de 1 y 2 variables, ej. "Género: Mujer + Tiene hijos: Sí"). No es una herramienta donde el usuario elige qué cruzar — es un reporte que encuentra los hallazgos solo. Se agregó `genero` al schema (no existía) para poder hacer este tipo de cruce.
+
+Filtra por muestra mínima (al menos 3 casos y 15 check-ins por grupo) para no reportar ruido estadístico como si fuera un patrón — grupos que no cumplen el mínimo se descartan en silencio. Banner de advertencia permanente en la página: es correlación descriptiva, no causal, y los hallazgos son preliminares mientras la muestra de datos demográficos capturados es chica.
+
+El cruce de variables se calcula en TypeScript sobre un dataset ya acotado (una fila por caso, vía la función SQL `demografia_cumplimiento_stats`, mismo patrón que `reporte_consolidado_stats`) — deliberadamente NO se arma SQL dinámico con nombres de columna desde el cliente, para no abrir una superficie de inyección.
+
+→ `supabase/migrations/20260730_024_genero_onboarding.sql` (columna `genero` + función `demografia_cumplimiento_stats`), `apps/web/src/app/dashboard/reportes/demografico/page.tsx`, `apps/web/src/components/Sidebar.tsx` (entrada de nav)
+
+**Fuera de alcance:** exportar a PDF, ajustar los mínimos de muestra desde la UI, combinaciones de 3+ variables (crecimiento combinatorio + riesgo de sobreajuste a ruido).
+
 ## 🔨 En progreso
 
 ### 14. App Android — build funcionando, falta probar en runtime
