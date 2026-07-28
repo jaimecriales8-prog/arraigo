@@ -51,7 +51,9 @@ function FacetecSelfie() {
       // Cortamos aquí y ofrecemos reintentar — el check-in no continúa a GPS.
       if (!result.livenessPassed) {
         runningRef.current = false
-        setMsg('No se completó la verificación facial. Debes mostrar tu rostro en vivo, sin foto ni video, para continuar.')
+        // sessionStatus temporal en pantalla (investigación 2026-07-28, quitar
+        // después) — no hay consola de debug conectada al APK release.
+        setMsg(`No se completó la verificación facial. Debes mostrar tu rostro en vivo, sin foto ni video, para continuar.\n\n[debug: ${result.sessionStatus}]`)
         setStatus('failed')
         return
       }

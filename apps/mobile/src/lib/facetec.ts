@@ -29,6 +29,7 @@ export interface FacetecAuthResult {
   sessionId: string
   livenessPassed: boolean
   matchScore: number // 0-100 (informativo — el veredicto real está server-side)
+  sessionStatus: string
 }
 
 let initialized = false
@@ -72,5 +73,6 @@ export async function facetecAuthenticate(userId: string, checkinId?: string): P
     sessionId: userId,
     livenessPassed,
     matchScore: livenessPassed ? 100 : 0,
+    sessionStatus: String(info?.sessionStatus ?? ''),
   }
 }
