@@ -46,6 +46,7 @@ cd apps/web && npm run dev
 | Rol | Email | Password |
 |---|---|---|
 | Imputado | prueba.imputado@arraigo.co | Arraigo2026! |
+| Técnico | tecnico@arraigo.co | Arraigo538395! |
 
 ## Regla de oro
 
