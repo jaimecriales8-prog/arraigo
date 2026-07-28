@@ -102,6 +102,14 @@ El usuario planteó originalmente un modelo de ownership individual (cada `judic
 
 **Fuera de alcance:** editar/desactivar una organización existente desde el panel (solo creación por ahora), transferir casos entre organizaciones.
 
+### 22. Revisión de seguridad — dos hallazgos corregidos (2026-07-27 a 2026-07-31)
+Auditoría completa del repo (RLS, rutas con service-role, edge functions, storage, mobile) encontró dos vulnerabilidades reales, ambas corregidas:
+
+- **HIGH — `case_messages` permitía al imputado alterar mensajes del funcionario.** La política RLS `UPDATE` (pensada solo para marcar `read_at`) filtraba filas pero no columnas — con la anon key + su propio JWT, el imputado podía modificar el contenido de cualquier mensaje de su caso vía PostgREST. Corregido restringiendo el `GRANT UPDATE` a solo la columna `read_at`.
+  → `supabase/migrations/20260727_021_fix_case_messages_update_cols.sql`
+- **MEDIUM — API key de FaceTec hardcodeada como fallback en el código fuente.** `facetec-proxy` caía a un valor literal si `FACETEC_DEVICE_KEY` no estaba configurada — se confirmó (`npx supabase secrets list`) que esa variable nunca se había configurado en producción, es decir, el fallback SÍ se estaba usando en vivo. Se configuró el secret primero (mismo valor, sin downtime) y luego se quitó el fallback del código — ahora falla explícito (500) si falta.
+  → `supabase/functions/facetec-proxy/index.ts`
+
 ## 🔨 En progreso
 
 ### 14. App Android — build funcionando, falta probar en runtime
