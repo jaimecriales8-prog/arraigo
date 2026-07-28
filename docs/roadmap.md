@@ -134,8 +134,19 @@ Con esto, FaceTec quedó **verificado funcionando en Android** (enroll + auth), 
 ### 24. Verificación de escena de trabajo usaba siempre el checkpoint de casa (2026-07-28)
 Al construir "sitio de trabajo" (punto 18) se agregó el selector Casa/Trabajo para el GPS, pero `checkin/escena.tsx` nunca se actualizó — seguía pidiendo siempre un checkpoint aleatorio de la casa sin importar la ubicación elegida, y `process-checkin` comparaba contra ese checkpoint también sin importar `location_type`. Un check-in real desde el trabajo fallaba la escena por diseño (comparaba la foto del trabajo contra un punto de referencia de la casa — ej. pidió foto de la cocina estando en el trabajo).
 
-Corregido: si `locationType='work'`, el cliente no busca checkpoints (no existen por sitio de trabajo, solo hay una foto única en `cases.work_photo_url`) y el servidor compara contra esa foto en vez de buscar un checkpoint — mismo patrón anti-fraude de siempre (la referencia la decide el servidor según `location_type`, nunca el cliente). Verificado funcionando en iPhone (TestFlight build 6).
+Corregido: si `locationType='work'`, el cliente no busca checkpoints (no existen por sitio de trabajo, solo hay una foto única en `cases.work_photo_url`) y el servidor compara contra esa foto en vez de buscar un checkpoint — mismo patrón anti-fraude de siempre (la referencia la decide el servidor según `location_type`, nunca el cliente). Verificado funcionando en iPhone (TestFlight build 6) y Android.
 → `supabase/functions/process-checkin/index.ts`, `apps/mobile/src/hooks/useCheckinStore.ts`, `apps/mobile/app/(imputado)/checkin/escena.tsx`
+
+### 25. Reporte de citas médicas del imputado, con excusa automática opcional (2026-08-02)
+El imputado puede avisar con anticipación (solo por adelantado — decisión explícita del usuario, sin justificación retroactiva) que tiene una cita médica: día, ventana de hora inicio/fin, motivo opcional. Vía edge function auto-autorizado (`report-medical-appointment`), mismo patrón que `register-work-location` — nunca RLS abierta al cliente, lección de las 7 vulnerabilidades del punto 22.
+
+El staff decide **por organización**, con un toggle nuevo en `Dashboard → Organizaciones` (visible a `judicial` para su propia org — la página se amplió para dejarlo entrar en modo solo-lectura de su org, antes era 100% `super_admin` — y a `super_admin` para cualquiera), si esas citas excusan automáticamente los check-ins que caigan dentro de la ventana declarada, o si solo quedan como contexto visible en el detalle del caso para que el staff excuse a mano con el botón "Excusar" que ya existía. Límite configurable de citas por mes por organización (`max_citas_medicas_mes`, default 2), validado server-side en el edge function.
+
+La excusa automática se resuelve extendiendo `expire_missed_verifications()` (la función que ya corre cada 15 min marcando `missed` los check-ins vencidos) — antes de marcar `missed`, revisa si el check-in cae dentro de una cita reportada y la organización tiene la excusa automática activada; si sí, lo marca `excused` (con `excused_by = NULL`, excusa del sistema) en vez de `missed`, y no genera alerta.
+
+→ `supabase/migrations/20260802_030_citas_medicas.sql` (tabla `medical_appointments` + columnas en `organizations` + función actualizada), `supabase/functions/report-medical-appointment/`, `apps/web/src/app/dashboard/organizaciones/` (toggle + límite), `apps/web/src/app/dashboard/casos/[id]/page.tsx` (bloque de citas), `apps/mobile/app/(imputado)/citas/`
+
+**Fuera de alcance:** justificación retroactiva, adjuntar soporte médico (foto de la orden), editar/cancelar una cita ya reportada, notificación push al staff cuando se reporta.
 
 ## 🔨 En progreso
 
