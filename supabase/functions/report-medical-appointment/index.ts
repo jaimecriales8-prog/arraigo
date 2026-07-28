@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
 
     const { data: caso } = await supabase
       .from('cases')
-      .select('id, imputado_id, organization_id')
+      .select('id, imputado_id, organization_id, timezone')
       .eq('id', caseId)
       .single()
 
@@ -47,8 +47,13 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'El caso no pertenece a este imputado' }), { status: 403, headers: J })
     }
 
-    // Solo por adelantado: la fecha+hora de inicio debe ser futura.
-    const appointmentStart = new Date(`${appointmentDate}T${startTime}`)
+    // Solo por adelantado: la fecha+hora de inicio debe ser futura, EN LA HORA
+    // LOCAL del caso (America/Bogota) — el runtime del edge function corre en
+    // UTC, así que "2026-07-28T13:40" sin offset se interpretaría mal (5h
+    // adelantado) y rechazaría citas que en realidad sí son futuras.
+    // Colombia no tiene horario de verano, así que el offset es fijo.
+    const offset = caso.timezone === 'America/Bogota' ? '-05:00' : 'Z'
+    const appointmentStart = new Date(`${appointmentDate}T${startTime}${offset}`)
     if (isNaN(appointmentStart.getTime()) || appointmentStart.getTime() <= Date.now()) {
       return new Response(JSON.stringify({ error: 'La cita debe reportarse con anticipación (fecha/hora futura)' }), { status: 400, headers: J })
     }
