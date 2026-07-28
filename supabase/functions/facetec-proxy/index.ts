@@ -41,6 +41,12 @@ Deno.serve(async (req) => {
 
     const { requestBlob, externalDatabaseRefID, testingApiHeader, kind, checkinId } = await req.json()
     if (!requestBlob || !kind) {
+      // Debug temporal (investigación 2026-07-28, quitar después) — para ver
+      // exactamente qué faltaba en el payload real de Android.
+      console.error('[facetec-proxy] payload incompleto', {
+        hasRequestBlob: !!requestBlob, requestBlobLen: requestBlob?.length ?? null,
+        kind, hasExternalDatabaseRefID: !!externalDatabaseRefID, hasTestingApiHeader: !!testingApiHeader,
+      })
       return new Response(JSON.stringify({ error: 'requestBlob and kind required' }), { status: 400, headers: cors })
     }
 
@@ -56,6 +62,7 @@ Deno.serve(async (req) => {
       }
     } else if (kind === 'enroll') {
       if (!externalDatabaseRefID) {
+        console.error('[facetec-proxy] enroll sin externalDatabaseRefID', { kind, checkinId })
         return new Response(JSON.stringify({ error: 'externalDatabaseRefID required for enroll' }), { status: 400, headers: cors })
       }
       const { data: tecnico } = await supabase
