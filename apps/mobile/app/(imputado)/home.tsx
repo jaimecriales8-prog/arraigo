@@ -196,6 +196,18 @@ export default function HomeScreen() {
         </TouchableOpacity>
       )}
 
+      {/* Cita médica */}
+      {caseData && (
+        <TouchableOpacity style={styles.workLocationCard} onPress={() => router.push('/(imputado)/citas')}>
+          <Text style={styles.workLocationIcon}>🩺</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.workLocationTitle}>Cita médica</Text>
+            <Text style={styles.workLocationSubtitle}>Avisa con anticipación si tienes una</Text>
+          </View>
+          <Text style={styles.workLocationArrow}>→</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Instrucciones */}
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>¿Qué pasa en la verificación?</Text>

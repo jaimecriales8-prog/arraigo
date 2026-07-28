@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 import CrearOrganizacionForm from './CrearOrganizacionForm'
+import ConfigCitasMedicas from './ConfigCitasMedicas'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,19 +23,22 @@ async function getOrganizaciones() {
   if (!user) redirect('/login')
 
   const { data: me } = await supabase
-    .from('profiles').select('role').eq('id', user.id).single()
-  if (!me || me.role !== 'super_admin') redirect('/dashboard')
+    .from('profiles').select('role, organization_id').eq('id', user.id).single()
+  if (!me || !['judicial', 'super_admin'].includes(me.role)) redirect('/dashboard')
 
-  const { data: orgs } = await supabase
+  let query = supabase
     .from('organizations')
-    .select('id, name, nit, contact_email, city, department, is_active, created_at')
+    .select('id, name, nit, contact_email, city, department, is_active, created_at, auto_excusar_citas_medicas, max_citas_medicas_mes')
     .order('created_at', { ascending: false })
+  if (me.role !== 'super_admin') query = query.eq('id', me.organization_id)
+  const { data: orgs } = await query
 
-  return orgs ?? []
+  return { orgs: orgs ?? [], role: me.role }
 }
 
 export default async function OrganizacionesPage() {
-  const orgs = await getOrganizaciones()
+  const { orgs, role } = await getOrganizaciones()
+  const esSuperAdmin = role === 'super_admin'
 
   return (
     <div>
@@ -43,7 +47,7 @@ export default async function OrganizacionesPage() {
         Cada organización es una entidad judicial independiente (juzgado, fiscalía, etc.) con sus propios usuarios y casos, completamente aislados entre sí.
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: esSuperAdmin ? '1fr 1fr' : '1fr', gap: 20, alignItems: 'start' }}>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <h2 style={{ fontSize: 15, fontWeight: 600 }}>{orgs.length} organización{orgs.length !== 1 ? 'es' : ''}</h2>
@@ -60,8 +64,15 @@ export default async function OrganizacionesPage() {
                       <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                         {o.contact_email}{o.city ? ` · ${o.city}` : ''}{o.nit ? ` · NIT ${o.nit}` : ''}
                       </div>
+                      <div style={{ marginTop: 8 }}>
+                        <ConfigCitasMedicas
+                          organizationId={o.id}
+                          autoExcusar={o.auto_excusar_citas_medicas}
+                          maxPorMes={o.max_citas_medicas_mes}
+                        />
+                      </div>
                     </td>
-                    <td style={{ padding: '12px 20px', textAlign: 'right' }}>
+                    <td style={{ padding: '12px 20px', textAlign: 'right', verticalAlign: 'top' }}>
                       <span style={{
                         fontSize: 11, fontWeight: 700, padding: '2px 10px', borderRadius: 20,
                         background: o.is_active ? 'var(--success)22' : 'var(--text-muted)22',
@@ -77,10 +88,12 @@ export default async function OrganizacionesPage() {
           )}
         </div>
 
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
-          <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Nueva organización</h2>
-          <CrearOrganizacionForm />
-        </div>
+        {esSuperAdmin && (
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
+            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16 }}>Nueva organización</h2>
+            <CrearOrganizacionForm />
+          </div>
+        )}
       </div>
     </div>
   )

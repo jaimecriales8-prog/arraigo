@@ -26,6 +26,7 @@ const ACTION_LABEL: Record<string, string> = {
   'case.note_added': 'Nota de seguimiento agregada',
   'work_location_change_approved': 'Cambio de sitio de trabajo aprobado',
   'organization.created': 'Organización creada',
+  'organization.medical_appointments_config_updated': 'Config. de citas médicas actualizada',
 }
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'Super Admin', judicial: 'Entidad Judicial', tecnico: 'Técnico', operador: 'Operador', imputado: 'Imputado',
@@ -41,6 +42,7 @@ const ACTION_COLOR: Record<string, string> = {
   'case.note_added': 'var(--accent)',
   'work_location_change_approved': 'var(--success)',
   'organization.created': 'var(--success)',
+  'organization.medical_appointments_config_updated': 'var(--accent)',
 }
 
 const fmt = (iso: string) =>
@@ -69,6 +71,8 @@ function detalle(a: Entrada): string {
       return 'Nuevo técnico asignado'
     case 'organization.created':
       return `${p.name ?? ''}${p.city ? ` · ${p.city}` : ''}`
+    case 'organization.medical_appointments_config_updated':
+      return `Auto-excusar: ${p.auto_excusar_citas_medicas ? 'Sí' : 'No'} · Máx/mes: ${p.max_citas_medicas_mes ?? '—'}`
     default:
       return ''
   }

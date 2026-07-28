@@ -53,7 +53,8 @@ async function getCaso(id: string) {
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
       surprise_verifications(id, status, created_at, expires_at, checkins(id, overall_passed, face_photo_url, scene_photo_url)),
       case_messages(id, message, push_sent, read_at, created_at, sender:profiles!case_messages_sent_by_fkey(full_name)),
-      case_notes(id, note, created_at, author:profiles!case_notes_author_id_fkey(full_name))
+      case_notes(id, note, created_at, author:profiles!case_notes_author_id_fkey(full_name)),
+      medical_appointments(id, appointment_date, start_time, end_time, reason, created_at)
     `)
     .eq('id', id)
     .single()
@@ -167,6 +168,31 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
           )}
+          {(() => {
+            const citas = ((caso as any).medical_appointments ?? [])
+              .slice()
+              .sort((a: any, b: any) => a.appointment_date.localeCompare(b.appointment_date))
+            if (citas.length === 0) return null
+            const hoy = new Date().toISOString().slice(0, 10)
+            return (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
+                  Citas médicas reportadas
+                </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {citas.map((cita: any) => (
+                    <div key={cita.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13.5 }}>
+                      <span style={{ color: cita.appointment_date < hoy ? 'var(--text-muted)' : 'var(--text)' }}>
+                        {new Date(cita.appointment_date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                        {' · '}{cita.start_time?.slice(0, 5)}–{cita.end_time?.slice(0, 5)}
+                        {cita.reason ? ` · ${cita.reason}` : ''}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })()}
           {(() => {
             const c = caso as any
             const filas = ([
