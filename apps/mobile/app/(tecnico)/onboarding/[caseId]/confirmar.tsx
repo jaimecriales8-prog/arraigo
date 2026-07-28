@@ -46,33 +46,16 @@ export default function OnboardingConfirmar() {
         })
       )
 
-      // 3. Actualizar el caso: location (PostGIS) + reference_photo_url + onboarding_done_at
+      // 3 y 4. Actualizar el caso (location, onboarding_done_at, status) y la
+      // foto de referencia del imputado — vía edge function con lista blanca
+      // de columnas, no con UPDATE directo del cliente (RLS de técnico no
+      // restringe columnas, solo filas: un UPDATE directo dejaría escribir
+      // cualquier campo del caso, no solo estos).
       setProgress('Guardando datos del caso…')
-      const { error: caseError } = await supabase
-        .from('cases')
-        .update({
-          location: `POINT(${lng} ${lat})`,
-          onboarding_done_at: new Date().toISOString(),
-          status: 'active',
-        })
-        .eq('id', caseId)
-
-      if (caseError) throw caseError
-
-      // 4. Guardar referencia facial en el perfil del imputado
-      // (se obtiene el imputado_id desde el caso)
-      const { data: caso } = await supabase
-        .from('cases')
-        .select('imputado_id')
-        .eq('id', caseId)
-        .single()
-
-      if (caso?.imputado_id && fotoUrl) {
-        await supabase
-          .from('profiles')
-          .update({ reference_photo_url: fotoUrl } as any)
-          .eq('id', caso.imputado_id)
-      }
+      const { error: finalizeError } = await supabase.functions.invoke('finalize-onboarding', {
+        body: { caseId, lat, lng, referencePhotoUrl: fotoUrl },
+      })
+      if (finalizeError) throw finalizeError
 
       // 5. Insertar checkpoints — desactivar los previos del caso primero
       // para que un reintento reemplace en vez de acumular duplicados
