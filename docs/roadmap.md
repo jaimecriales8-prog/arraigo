@@ -64,6 +64,15 @@ Botón "📝 Agregar nota" en el detalle del caso — observaciones internas del
 El formulario de creación de caso tenía inputs de texto libre para ciudad/departamento — un typo rompía silenciosamente los filtros del mapa general (que comparan strings exactos). Ahora son selects encadenados (elegir departamento filtra el select de municipio) con el dataset completo DIVIPOLA (33 departamentos, 1110 municipios).
 → `apps/web/src/lib/colombia.ts`, `apps/web/src/app/dashboard/casos/nuevo/CrearCasoForm.tsx`
 
+### 18. Sitio de trabajo — segunda ubicación autorizada por caso (2026-07-28)
+El imputado puede registrar un sitio de trabajo desde su celular (selfie de verificación facial + GPS + foto de escena), una sola vez; para cambiarlo después debe solicitarlo y un `judicial` debe aprobarlo antes de que pueda volver a capturar. En el check-in, el imputado elige manualmente "Casa" o "Trabajo" (el botón "Trabajo" solo aparece si ya hay sitio registrado) y el servidor valida el GPS contra el geofence correspondiente — sin lógica de horarios. El selfie se agregó a pedido explícito del usuario para evitar que otra persona haga el registro por el imputado; soporta tanto FaceTec (verificación server-side vía `facetec_sessions`, `checkin_id NULL`) como el modo acelerómetro (fallback cuando la org no tiene FaceTec activo, mismo nivel de verificación que el check-in normal en ese modo).
+
+Sigue los dos patrones ya establecidos en el código en vez de inventar nuevos: privilegios de escritura del imputado vía edge function con service-role que se autoriza a sí misma (como `process-checkin`), y aprobación de staff como acción directa con auditoría (como `ExcusarCheckin`) — no hay tabla de "solicitudes" nueva, solo un puñado de columnas de estado en `cases`.
+
+→ `supabase/migrations/20260728_022_work_location.sql` (columnas `work_*` en `cases`, `location_type` en `checkins`), `supabase/functions/register-work-location/`, `supabase/functions/request-work-location-change/`, `supabase/functions/process-checkin/index.ts` (selector Casa/Trabajo), `apps/mobile/app/(imputado)/trabajo/`, `apps/mobile/src/hooks/useWorkLocationStore.ts`, `apps/web/src/app/dashboard/casos/[id]/AprobarCambioTrabajo.tsx`, `apps/web/src/app/api/casos/aprobar-cambio-trabajo/route.ts`
+
+**Fuera de alcance (fast-follow explícito):** editar `work_geofence_radius_m` desde el panel (fijo en 200m por ahora), marcar retroactivamente check-ins pasados si se vuelve a registrar el sitio, pin del sitio de trabajo en el mapa general y desglose por `location_type` en reportes PDF (la columna ya queda grabada, la UI no se construyó en esta iteración).
+
 ## 🔨 En progreso
 
 ### 14. App Android — build funcionando, falta probar en runtime

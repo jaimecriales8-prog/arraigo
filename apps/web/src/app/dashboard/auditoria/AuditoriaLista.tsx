@@ -24,6 +24,7 @@ const ACTION_LABEL: Record<string, string> = {
   'user.password_reset': 'Contraseña restablecida',
   'alert.resolved': 'Alerta resuelta',
   'case.note_added': 'Nota de seguimiento agregada',
+  'work_location_change_approved': 'Cambio de sitio de trabajo aprobado',
 }
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'Super Admin', judicial: 'Entidad Judicial', tecnico: 'Técnico', operador: 'Operador', imputado: 'Imputado',
@@ -37,6 +38,7 @@ const ACTION_COLOR: Record<string, string> = {
   'user.password_reset': 'var(--warning)',
   'alert.resolved': 'var(--success)',
   'case.note_added': 'var(--accent)',
+  'work_location_change_approved': 'var(--success)',
 }
 
 const fmt = (iso: string) =>

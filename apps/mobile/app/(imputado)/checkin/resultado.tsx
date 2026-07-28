@@ -44,6 +44,7 @@ export default function ResultadoScreen() {
           gpsLng: store.gpsLng,
           gpsAccuracyM: store.gpsAccuracyM,
           gpsIsMock: store.gpsIsMock,
+          locationType: store.locationType,
           livenessMethod: store.livenessMethod,
           facetecLivenessPassed: store.facetecLivenessPassed,
           facetecMatchScore: store.facetecMatchScore,

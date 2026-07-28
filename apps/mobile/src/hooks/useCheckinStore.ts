@@ -12,6 +12,7 @@ interface CheckinStore {
   sceneUri: string | null
   sceneCheckpointId: string | null
   surpriseVerificationId: string | null
+  locationType: 'home' | 'work'
 
   // Liveness: 'accelerometer' (por defecto) o 'facetec' según el toggle
   livenessMethod: 'accelerometer' | 'facetec'
@@ -23,6 +24,7 @@ interface CheckinStore {
   setGPS: (lat: number, lng: number, accuracyM: number, isMock: boolean) => void
   setScene: (base64: string, uri: string, checkpointId: string) => void
   setSurpriseVerificationId: (id: string) => void
+  setLocationType: (t: 'home' | 'work') => void
   setFacetecResult: (r: { livenessPassed: boolean; matchScore: number; sessionId: string }) => void
   reset: () => void
 }
@@ -38,6 +40,7 @@ export const useCheckinStore = create<CheckinStore>((set) => ({
   sceneUri: null,
   sceneCheckpointId: null,
   surpriseVerificationId: null,
+  locationType: 'home',
 
   livenessMethod: 'accelerometer',
   facetecLivenessPassed: null,
@@ -48,6 +51,7 @@ export const useCheckinStore = create<CheckinStore>((set) => ({
   setGPS: (lat, lng, accuracyM, isMock) => set({ gpsLat: lat, gpsLng: lng, gpsAccuracyM: accuracyM, gpsIsMock: isMock }),
   setScene: (base64, uri, checkpointId) => set({ sceneBase64: base64, sceneUri: uri, sceneCheckpointId: checkpointId }),
   setSurpriseVerificationId: (id) => set({ surpriseVerificationId: id }),
+  setLocationType: (t) => set({ locationType: t }),
   setFacetecResult: (r) => set({
     livenessMethod: 'facetec',
     facetecLivenessPassed: r.livenessPassed,
@@ -59,6 +63,7 @@ export const useCheckinStore = create<CheckinStore>((set) => ({
     gpsLat: null, gpsLng: null, gpsAccuracyM: null, gpsIsMock: false,
     sceneBase64: null, sceneUri: null, sceneCheckpointId: null,
     surpriseVerificationId: null,
+    locationType: 'home',
     livenessMethod: 'accelerometer',
     facetecLivenessPassed: null, facetecMatchScore: null, facetecSessionId: null,
   }),

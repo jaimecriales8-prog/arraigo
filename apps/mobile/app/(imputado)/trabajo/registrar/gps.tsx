@@ -1,18 +1,14 @@
 import { useState, useEffect } from 'react'
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native'
-import { useRouter, useLocalSearchParams } from 'expo-router'
-import { getCurrentLocation, requestLocationPermission } from '../../../src/lib/gps'
-import { useCheckinStore } from '../../../src/hooks/useCheckinStore'
-import { useCase } from '../../../src/hooks/useCase'
+import { useRouter } from 'expo-router'
+import { getCurrentLocation, requestLocationPermission } from '../../../../src/lib/gps'
+import { useWorkLocationStore } from '../../../../src/hooks/useWorkLocationStore'
 
-export default function GPSScreen() {
+export default function TrabajoGPSScreen() {
   const router = useRouter()
-  const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
-  const { setGPS, locationType, setLocationType } = useCheckinStore()
-  const { caseData } = useCase()
+  const { setGPS } = useWorkLocationStore()
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'error' | 'mock'>('idle')
   const [coords, setCoords] = useState<{ lat: number; lng: number; accuracy: number } | null>(null)
-  const hasWorkLocation = !!caseData?.work_registered_at
 
   useEffect(() => { capture() }, [])
 
@@ -26,14 +22,11 @@ export default function GPSScreen() {
     }
     try {
       const loc = await getCurrentLocation()
-
       if (loc.isMock) {
-        // GPS falso detectado — registramos pero marcamos
         setGPS(loc.lat, loc.lng, loc.accuracyM, true)
         setStatus('mock')
         return
       }
-
       setGPS(loc.lat, loc.lng, loc.accuracyM, false)
       setCoords({ lat: loc.lat, lng: loc.lng, accuracy: loc.accuracyM })
       setStatus('done')
@@ -43,35 +36,16 @@ export default function GPSScreen() {
   }
 
   function continuar() {
-    router.push({ pathname: '/(imputado)/checkin/escena', params: { checkinId } })
+    router.push('/(imputado)/trabajo/registrar/foto')
   }
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.step}>Paso 2 de 3</Text>
-        <Text style={styles.title}>Verificando ubicación</Text>
-        <Text style={styles.subtitle}>
-          Confirmamos que te encuentras en la ubicación seleccionada.
-        </Text>
+        <Text style={styles.title}>Ubicación del sitio de trabajo</Text>
+        <Text style={styles.subtitle}>Capturamos tu ubicación actual como el punto de tu sitio de trabajo.</Text>
       </View>
-
-      {hasWorkLocation && (
-        <View style={styles.selectorRow}>
-          <TouchableOpacity
-            style={[styles.selectorBtn, locationType === 'home' && styles.selectorBtnActive]}
-            onPress={() => setLocationType('home')}
-          >
-            <Text style={[styles.selectorText, locationType === 'home' && styles.selectorTextActive]}>🏠 Casa</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.selectorBtn, locationType === 'work' && styles.selectorBtnActive]}
-            onPress={() => setLocationType('work')}
-          >
-            <Text style={[styles.selectorText, locationType === 'work' && styles.selectorTextActive]}>🏢 Trabajo</Text>
-          </TouchableOpacity>
-        </View>
-      )}
 
       <View style={styles.body}>
         {status === 'loading' && (
@@ -86,13 +60,9 @@ export default function GPSScreen() {
           <View style={styles.successCard}>
             <Text style={styles.successIcon}>📍</Text>
             <Text style={styles.successTitle}>Ubicación obtenida</Text>
-            <Text style={styles.coord}>
-              {coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}
-            </Text>
+            <Text style={styles.coord}>{coords.lat.toFixed(6)}, {coords.lng.toFixed(6)}</Text>
             <Text style={styles.accuracy}>Precisión: ±{Math.round(coords.accuracy)} m</Text>
-            <View style={styles.okBadge}>
-              <Text style={styles.okText}>✓ GPS verificado</Text>
-            </View>
+            <View style={styles.okBadge}><Text style={styles.okText}>✓ GPS verificado</Text></View>
           </View>
         )}
 
@@ -100,9 +70,10 @@ export default function GPSScreen() {
           <View style={styles.warningCard}>
             <Text style={styles.warningIcon}>⚠️</Text>
             <Text style={styles.warningTitle}>GPS simulado detectado</Text>
-            <Text style={styles.warningText}>
-              Se detectó que estás usando una ubicación simulada. Esto quedará registrado en tu expediente.
-            </Text>
+            <Text style={styles.warningText}>No es posible registrar el sitio de trabajo con una ubicación simulada.</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={capture}>
+              <Text style={styles.retryText}>Reintentar</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -110,9 +81,7 @@ export default function GPSScreen() {
           <View style={styles.errorCard}>
             <Text style={styles.errorIcon}>❌</Text>
             <Text style={styles.errorTitle}>No se pudo obtener el GPS</Text>
-            <Text style={styles.errorText}>
-              Asegúrate de tener el GPS activado y permisos otorgados.
-            </Text>
+            <Text style={styles.errorText}>Asegúrate de tener el GPS activado y permisos otorgados.</Text>
             <TouchableOpacity style={styles.retryBtn} onPress={capture}>
               <Text style={styles.retryText}>Reintentar</Text>
             </TouchableOpacity>
@@ -120,7 +89,7 @@ export default function GPSScreen() {
         )}
       </View>
 
-      {(status === 'done' || status === 'mock') && (
+      {status === 'done' && (
         <View style={styles.footer}>
           <TouchableOpacity style={styles.btn} onPress={continuar}>
             <Text style={styles.btnText}>Continuar →</Text>
@@ -141,30 +110,18 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', gap: 16 },
   loadingText: { fontSize: 16, color: '#fff', marginTop: 8 },
   loadingHint: { fontSize: 13, color: '#4a6a8a' },
-  successCard: {
-    backgroundColor: '#1a3a5c', borderRadius: 20, padding: 32,
-    alignItems: 'center', borderWidth: 1, borderColor: '#16a34a44',
-  },
+  successCard: { backgroundColor: '#1a3a5c', borderRadius: 20, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#16a34a44' },
   successIcon: { fontSize: 48, marginBottom: 12 },
   successTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 8 },
   coord: { fontSize: 13, color: '#7a9bbf', fontFamily: 'monospace', marginBottom: 4 },
   accuracy: { fontSize: 13, color: '#7a9bbf', marginBottom: 16 },
-  okBadge: {
-    backgroundColor: '#16a34a22', paddingHorizontal: 16, paddingVertical: 6,
-    borderRadius: 20,
-  },
+  okBadge: { backgroundColor: '#16a34a22', paddingHorizontal: 16, paddingVertical: 6, borderRadius: 20 },
   okText: { color: '#16a34a', fontWeight: '700', fontSize: 14 },
-  warningCard: {
-    backgroundColor: '#2d1f0a', borderRadius: 20, padding: 32,
-    alignItems: 'center', borderWidth: 1, borderColor: '#d9770644',
-  },
+  warningCard: { backgroundColor: '#2d1f0a', borderRadius: 20, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#d9770644' },
   warningIcon: { fontSize: 48, marginBottom: 12 },
   warningTitle: { fontSize: 18, fontWeight: '700', color: '#f97316', marginBottom: 8 },
-  warningText: { fontSize: 14, color: '#fed7aa', textAlign: 'center', lineHeight: 20 },
-  errorCard: {
-    backgroundColor: '#1f0f0f', borderRadius: 20, padding: 32,
-    alignItems: 'center', borderWidth: 1, borderColor: '#dc262644',
-  },
+  warningText: { fontSize: 14, color: '#fed7aa', textAlign: 'center', lineHeight: 20, marginBottom: 16 },
+  errorCard: { backgroundColor: '#1f0f0f', borderRadius: 20, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: '#dc262644' },
   errorIcon: { fontSize: 48, marginBottom: 12 },
   errorTitle: { fontSize: 18, fontWeight: '700', color: '#f87171', marginBottom: 8 },
   errorText: { fontSize: 14, color: '#fca5a5', textAlign: 'center', lineHeight: 20, marginBottom: 24 },
@@ -173,12 +130,4 @@ const styles = StyleSheet.create({
   footer: { padding: 24, paddingBottom: 48 },
   btn: { backgroundColor: '#2563eb', borderRadius: 12, padding: 18, alignItems: 'center' },
   btnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  selectorRow: { flexDirection: 'row', gap: 12, paddingHorizontal: 24, marginBottom: 8 },
-  selectorBtn: {
-    flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-    backgroundColor: '#1a3a5c', borderWidth: 1, borderColor: '#2a4a6c',
-  },
-  selectorBtnActive: { backgroundColor: '#2563eb22', borderColor: '#2563eb' },
-  selectorText: { color: '#7a9bbf', fontSize: 15, fontWeight: '600' },
-  selectorTextActive: { color: '#fff' },
 })

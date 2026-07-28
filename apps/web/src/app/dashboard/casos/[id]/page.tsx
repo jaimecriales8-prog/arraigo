@@ -11,6 +11,7 @@ import HistorialTabla from './HistorialTabla'
 import DescargarReporte from './DescargarReporte'
 import RestablecerPassword from '../../usuarios/RestablecerPassword'
 import UbicacionMapa from './UbicacionMapaCliente'
+import AprobarCambioTrabajo from './AprobarCambioTrabajo'
 import { dangerColor, dangerLabel } from '@/lib/danger'
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -43,6 +44,7 @@ async function getCaso(id: string) {
     .select(`
       id, case_number, status, checkin_times, geofence_radius_m, address, city, location, danger_level,
       technician_id, organization_id, imputado_id,
+      work_address, work_photo_url, work_registered_at, work_change_requested_at, work_change_reason, work_change_approved_at,
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
@@ -96,6 +98,10 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
         <DescargarReporte caseId={caso.id} />
       </div>
 
+      {(caso as any)._puedeReasignar && (caso as any).work_change_requested_at && !(caso as any).work_change_approved_at && (
+        <AprobarCambioTrabajo caseId={caso.id} reason={(caso as any).work_change_reason ?? null} />
+      )}
+
       <div className="detail-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 32 }}>
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 24 }}>
           <h2 style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 16, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -140,6 +146,24 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               )
             })()}
           </div>
+          {(caso as any).work_registered_at && (
+            <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
+                Sitio de trabajo
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 14 }}>
+                  <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>Registrado el</span>
+                  <span style={{ fontWeight: 500, textAlign: 'right' }}>
+                    {new Date((caso as any).work_registered_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
+                {(caso as any).work_change_requested_at && !(caso as any).work_change_approved_at && (
+                  <div style={{ fontSize: 13, color: 'var(--warning)' }}>Solicitud de cambio pendiente de aprobación</div>
+                )}
+              </div>
+            </div>
+          )}
           {(caso as any)._puedeReasignar && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

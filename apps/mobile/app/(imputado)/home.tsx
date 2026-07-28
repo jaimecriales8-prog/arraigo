@@ -182,6 +182,20 @@ export default function HomeScreen() {
         </View>
       )}
 
+      {/* Sitio de trabajo */}
+      {caseData && (
+        <TouchableOpacity style={styles.workLocationCard} onPress={() => router.push('/(imputado)/trabajo')}>
+          <Text style={styles.workLocationIcon}>🏢</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.workLocationTitle}>Sitio de trabajo</Text>
+            <Text style={styles.workLocationSubtitle}>
+              {caseData.work_registered_at ? 'Registrado — ver o solicitar cambio' : 'No registrado — regístralo aquí'}
+            </Text>
+          </View>
+          <Text style={styles.workLocationArrow}>→</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Instrucciones */}
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>¿Qué pasa en la verificación?</Text>
@@ -260,6 +274,15 @@ const styles = StyleSheet.create({
   scheduleIcon: { fontSize: 18, marginRight: 12 },
   scheduleTime: { fontSize: 18, color: '#fff', fontWeight: '600' },
   scheduleNote: { fontSize: 12, color: '#4a6a8a', marginTop: 12 },
+
+  workLocationCard: {
+    flexDirection: 'row', alignItems: 'center', backgroundColor: '#1a3a5c', borderRadius: 16,
+    padding: 18, marginBottom: 24, gap: 14,
+  },
+  workLocationIcon: { fontSize: 26 },
+  workLocationTitle: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  workLocationSubtitle: { fontSize: 12.5, color: '#7a9bbf', marginTop: 2 },
+  workLocationArrow: { fontSize: 18, color: '#4a6a8a' },
 
   infoCard: { backgroundColor: '#1a3a5c', borderRadius: 16, padding: 20 },
   infoTitle: { fontSize: 15, color: '#7a9bbf', marginBottom: 16 },

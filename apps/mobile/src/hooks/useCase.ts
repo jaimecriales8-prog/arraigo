@@ -14,6 +14,9 @@ export interface CaseData {
   timezone: string
   geofence_radius_m: number
   location: { coordinates: [number, number] } | null  // [lng, lat]
+  work_registered_at: string | null
+  work_change_requested_at: string | null
+  work_change_approved_at: string | null
 }
 
 export interface PendingCheckin {
@@ -40,7 +43,7 @@ export function useCase() {
 
     const { data: caseRow } = await supabase
       .from('cases')
-      .select('id, case_number, status, address, city, checkin_times, checkin_window_min, timezone, geofence_radius_m, location, organizations(facetec_enabled)')
+      .select('id, case_number, status, address, city, checkin_times, checkin_window_min, timezone, geofence_radius_m, location, work_registered_at, work_change_requested_at, work_change_approved_at, organizations(facetec_enabled)')
       .eq('imputado_id', profile!.id)
       .eq('status', 'active')
       .single()

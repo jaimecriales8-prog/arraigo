@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       checkinId, selfieUrl, sceneUrl, gpsLat, gpsLng, gpsAccuracyM, gpsIsMock,
       sceneCheckpointId, appVersion, osVersion,
       livenessMethod, facetecLivenessPassed, facetecMatchScore, facetecSessionId,
-      surpriseVerificationId,
+      surpriseVerificationId, locationType,
     } = body
     dbgCheckinId = checkinId ?? null
 
@@ -89,12 +89,21 @@ Deno.serve(async (req) => {
 
     const { data: caso } = await supabase
       .from('cases')
-      .select('id, organization_id, imputado_id, geofence_radius_m, location')
+      .select('id, organization_id, imputado_id, geofence_radius_m, location, work_geofence_radius_m, work_location')
       .eq('id', checkin.case_id)
       .single()
 
     if (!caso) return fail('lookup', 'Caso no encontrado', 404)
     if (caso.imputado_id !== user.id) return fail('authz', 'El check-in no pertenece a este imputado', 403)
+
+    // Selector manual Casa/Trabajo — el servidor valida contra el geofence
+    // correspondiente. Sin lógica de horarios: la elección la hace el imputado.
+    const locType = locationType === 'work' ? 'work' : 'home'
+    if (locType === 'work' && !caso.work_location) {
+      return fail('validation', 'Sitio de trabajo no registrado', 400)
+    }
+    const targetLocation = locType === 'work' ? caso.work_location : caso.location
+    const targetRadius = locType === 'work' ? (caso.work_geofence_radius_m ?? 200) : (caso.geofence_radius_m ?? 200)
 
     // GPS
     let gpsDistanceM: number | null = null
@@ -104,17 +113,16 @@ Deno.serve(async (req) => {
     if (gpsIsMock) {
       gpsPassed = false
       failReasons.push('GPS simulado detectado')
-    } else if (caso.location) {
-      const coords = caso.location.coordinates
+    } else if (targetLocation) {
+      const coords = targetLocation.coordinates
       gpsDistanceM = distanceMeters(gpsLat, gpsLng, coords[1], coords[0])
-      const radius = caso.geofence_radius_m ?? 200
       // Tolerancia por imprecisión del GPS, acotada a 150m: un fix bueno da poca
       // holgura, uno malo da 150m máx (para que una lectura basura no apruebe
       // cualquier ubicación). Solo falla si está fuera INCLUSO con el margen —
       // la duda por ruido del GPS no genera falsa violación.
       const tolerance = Math.min(gpsAccuracyM ?? 0, 150)
-      gpsPassed = gpsDistanceM <= radius + tolerance
-      if (!gpsPassed) failReasons.push(`GPS fuera del domicilio (${Math.round(gpsDistanceM)}m, máx ${radius}m)`)
+      gpsPassed = gpsDistanceM <= targetRadius + tolerance
+      if (!gpsPassed) failReasons.push(`GPS fuera de${locType === 'work' ? 'l sitio de trabajo' : 'l domicilio'} (${Math.round(gpsDistanceM)}m, máx ${targetRadius}m)`)
     }
 
     // ESCENA — comparar foto actual con checkpoint de referencia usando OpenAI
@@ -265,6 +273,7 @@ Reply with ONLY a JSON object:
       gps_passed: gpsPassed,
       gps_distance_m: gpsDistanceM != null ? Math.min(Math.round(gpsDistanceM * 100) / 100, 9999999) : null,
       gps_is_mock: gpsIsMock ?? false,
+      location_type: locType,
       scene_checkpoint_id: sceneCheckpointId ?? null,
       scene_score: sceneScore / 100,   // OpenAI da 0-100; la columna es NUMERIC(4,3) 0-1
       scene_passed: scenePassed,
@@ -298,7 +307,8 @@ Reply with ONLY a JSON object:
     if (gpsIsMock) {
       alertas.push({ ...baseAlert, severity: 'critical', type: 'mock_gps', message: 'GPS simulado detectado' })
     } else if (!gpsPassed) {
-      alertas.push({ ...baseAlert, severity: 'warning', type: 'gps_out', message: `GPS fuera del domicilio${gpsDistanceM != null ? ` (${Math.round(gpsDistanceM)}m)` : ''}` })
+      const lugar = locType === 'work' ? 'del sitio de trabajo' : 'del domicilio'
+      alertas.push({ ...baseAlert, severity: 'warning', type: 'gps_out', message: `GPS fuera ${lugar}${gpsDistanceM != null ? ` (${Math.round(gpsDistanceM)}m)` : ''}` })
     }
     // Fallo facial solo tiene sentido con FaceTec (sin él, la cara es placeholder).
     // Posible suplantación → critical.
