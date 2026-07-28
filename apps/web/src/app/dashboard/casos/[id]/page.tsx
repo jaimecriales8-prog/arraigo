@@ -45,6 +45,9 @@ async function getCaso(id: string) {
       id, case_number, status, checkin_times, geofence_radius_m, address, city, location, danger_level,
       technician_id, organization_id, imputado_id,
       work_address, work_photo_url, work_registered_at, work_change_requested_at, work_change_reason, work_change_approved_at,
+      estrato, nivel_educativo, estado_civil, ocupacion, tiene_hijos, num_hijos, regimen_salud, tenencia_vivienda,
+      contacto_emergencia_nombre, contacto_emergencia_telefono, contacto_emergencia_parentesco,
+      movilidad_reducida, condiciones_medicas, medicamentos,
       imputado:profiles!cases_imputado_id_fkey(full_name, last_seen_at),
       tecnico:profiles!cases_technician_id_fkey(full_name),
       checkins(id, status, overall_passed, created_at, face_photo_url, scene_photo_url, gps_lat, gps_lng, gps_passed, gps_distance_m),
@@ -164,6 +167,62 @@ export default async function CasoDetailPage({ params }: { params: Promise<{ id:
               </div>
             </div>
           )}
+          {(() => {
+            const c = caso as any
+            const filas = ([
+              ['Estrato', c.estrato ? String(c.estrato) : ''],
+              ['Nivel educativo', c.nivel_educativo ?? ''],
+              ['Estado civil', c.estado_civil ?? ''],
+              ['Ocupación', c.ocupacion ?? ''],
+              ['Tiene hijos', c.tiene_hijos == null ? '' : (c.tiene_hijos ? `Sí (${c.num_hijos ?? '—'})` : 'No')],
+              ['Régimen de salud', c.regimen_salud ?? ''],
+              ['Tenencia de vivienda', c.tenencia_vivienda ?? ''],
+            ] as [string, string][]).filter(([, v]) => v)
+            const contacto = c.contacto_emergencia_nombre || c.contacto_emergencia_telefono || c.contacto_emergencia_parentesco
+            const medico = c.movilidad_reducida != null || c.condiciones_medicas || c.medicamentos
+            if (filas.length === 0 && !contacto && !medico) return null
+            return (
+              <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: 10 }}>
+                  Datos adicionales
+                </span>
+                {filas.length > 0 && (
+                  <div style={{ marginBottom: contacto || medico ? 14 : 0 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Perfil socioeconómico</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+                      {filas.map(([label, value]) => (
+                        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', gap: 16, fontSize: 13.5 }}>
+                          <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{label}</span>
+                          <span style={{ fontWeight: 500, textAlign: 'right' }}>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {contacto && (
+                  <div style={{ marginBottom: medico ? 14 : 0 }}>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Contacto de emergencia</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+                      {c.contacto_emergencia_nombre && <div style={{ fontSize: 13.5 }}>{c.contacto_emergencia_nombre}{c.contacto_emergencia_parentesco ? ` (${c.contacto_emergencia_parentesco})` : ''}</div>}
+                      {c.contacto_emergencia_telefono && <div style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>{c.contacto_emergencia_telefono}</div>}
+                    </div>
+                  </div>
+                )}
+                {medico && (
+                  <div>
+                    <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>Condiciones médicas</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 6 }}>
+                      {c.movilidad_reducida != null && (
+                        <div style={{ fontSize: 13.5 }}>Movilidad reducida: {c.movilidad_reducida ? 'Sí' : 'No'}</div>
+                      )}
+                      {c.condiciones_medicas && <div style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>{c.condiciones_medicas}</div>}
+                      {c.medicamentos && <div style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>Medicamentos: {c.medicamentos}</div>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
           {(caso as any)._puedeReasignar && (
             <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
               <span style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>

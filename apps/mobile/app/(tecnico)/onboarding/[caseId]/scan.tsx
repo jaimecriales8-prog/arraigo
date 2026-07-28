@@ -134,7 +134,7 @@ export default function OnboardingScan() {
           <TouchableOpacity
             style={styles.nextBtn}
             onPress={() => router.push({
-              pathname: `/(tecnico)/onboarding/${caseId}/confirmar`,
+              pathname: `/(tecnico)/onboarding/${caseId}/datos-adicionales`,
               params: {
                 lat, lng,
                 selfieBase64,

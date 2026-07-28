@@ -7,8 +7,9 @@ import { uploadPhoto } from '../../../../src/lib/storage'
 type Step = 'review' | 'saving' | 'done' | 'error'
 
 export default function OnboardingConfirmar() {
-  const { caseId, lat, lng, selfieBase64, checkpointsJson, facetecEnrolled } = useLocalSearchParams<{
+  const { caseId, lat, lng, selfieBase64, checkpointsJson, facetecEnrolled, datosAdicionalesJson } = useLocalSearchParams<{
     caseId: string; lat: string; lng: string; selfieBase64: string; checkpointsJson: string; facetecEnrolled: string
+    datosAdicionalesJson: string
   }>()
   const isFacetec = facetecEnrolled === 'true'
   const router = useRouter()
@@ -16,6 +17,8 @@ export default function OnboardingConfirmar() {
   const [progress, setProgress] = useState('')
 
   const checkpoints: { label: string; base64: string }[] = checkpointsJson ? JSON.parse(checkpointsJson) : []
+  const datosAdicionales: Record<string, unknown> = datosAdicionalesJson ? JSON.parse(datosAdicionalesJson) : {}
+  const hayDatosAdicionales = Object.keys(datosAdicionales).length > 0
 
   const savingRef = useRef(false)
 
@@ -92,6 +95,16 @@ export default function OnboardingConfirmar() {
 
       if (cpError) throw cpError
 
+      // 6. Datos adicionales (opcionales) — no debe bloquear la activación
+      // del caso si falla; se registra el error pero se continúa.
+      if (hayDatosAdicionales) {
+        setProgress('Guardando datos adicionales…')
+        const { error: datosError } = await supabase.functions.invoke('save-onboarding-details', {
+          body: { caseId, ...datosAdicionales },
+        })
+        if (datosError) console.error('[onboarding] save-onboarding-details:', datosError)
+      }
+
       setStep('done')
     } catch (e: any) {
       console.error(e)
@@ -153,6 +166,7 @@ export default function OnboardingConfirmar() {
         {checkpoints.map((cp, i) => (
           <Row key={i} label={`  ${i + 1}.`} value={cp.label} />
         ))}
+        <Row label="Datos adicionales" value={hayDatosAdicionales ? '✓ Capturados' : 'Omitidos'} ok={hayDatosAdicionales} />
       </View>
 
       <Text style={styles.warningText}>
