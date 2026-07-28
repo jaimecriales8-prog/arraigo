@@ -166,7 +166,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 
   const { data: me } = await supabase
     .from('profiles').select('role, organization_id').eq('id', user.id).single()
-  if (!me) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (!me || !['judicial', 'operador', 'super_admin'].includes(me.role)) {
+    return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
+  }
 
   const { data: caso } = await supabase
     .from('cases')
