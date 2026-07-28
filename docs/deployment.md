@@ -159,6 +159,6 @@ Ver [seguridad.md](seguridad.md). Auditoría 2026-07-02 (commit dd40d77): cerrad
 - [ ] Licencia FaceTec Server (producción real con presos)
 - [ ] Rate limiting en Edge Functions
 - [x] Android — build release compilando (`BUILD SUCCESSFUL`), puente FaceTec integrado y compilando, APK release (no debug) entregado a un tester externo, reconstruido con sitio de trabajo + datos adicionales del onboarding + género
-- [ ] Android — probar flujo real de FaceTec (enroll/authenticate) en runtime
+- [x] Android — probar flujo real de FaceTec (enroll/authenticate) en runtime — verificado 2026-07-28, ver `docs/roadmap.md` punto 23
 - [ ] Android — push remoto (FCM/Firebase), hoy degrada a polling
 - [ ] Dominio personalizado (app.arraigo.co)

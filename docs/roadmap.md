@@ -122,14 +122,28 @@ Cuatro rondas de auditoría del repo (RLS, rutas con service-role, edge function
 
 **Nota:** las siete vulnerabilidades comparten la misma causa raíz — políticas RLS de `UPDATE`/`INSERT` en el schema original (o storage) que restringen filas pero nunca columnas/paths. Si se agrega una tabla o bucket nuevo con escritura client-facing, revisar explícitamente si necesita restricción de columna/path antes de darlo por seguro.
 
+### 23. FaceTec en Android — probado en runtime por primera vez, 2 bugs encontrados y corregidos (2026-07-28)
+Primera prueba real (nunca antes ejecutado, solo compilado) del flujo completo enroll + check-in en un dispositivo Android físico (Samsung SM-A155F). Encontró y corrigió:
+
+- Enrolamiento fallaba con `abortOnCatastrophicError()` / `Unable To Store FaceMap: An enrollment already exists for this externalDatabaseRefID` — no era un bug, es la Testing API de FaceTec rechazando correctamente el re-enrolamiento del mismo `externalDatabaseRefID` tras probar 23 veces con el mismo imputado de prueba. Se resolvió usando un imputado nuevo.
+- `facetec_sessions.kind` solo acepta `'enroll'`/`'auth'` (CHECK constraint) pero el handshake de inicialización del SDK (`kind='init'`, igual en iOS y Android) violaba esa restricción en silencio en cada sesión, en ambas plataformas, desde siempre — el `insert()` no revisaba su resultado así que nunca rompía el flujo visible, solo perdía la vuelta a la BD y el registro de auditoría del handshake. Corregido saltando el insert para `kind='init'`.
+  → `supabase/functions/facetec-proxy/index.ts`
+
+Con esto, FaceTec quedó **verificado funcionando en Android** (enroll + auth), cerrando el pendiente que quedaba abierto desde el punto 14.
+
+### 24. Verificación de escena de trabajo usaba siempre el checkpoint de casa (2026-07-28)
+Al construir "sitio de trabajo" (punto 18) se agregó el selector Casa/Trabajo para el GPS, pero `checkin/escena.tsx` nunca se actualizó — seguía pidiendo siempre un checkpoint aleatorio de la casa sin importar la ubicación elegida, y `process-checkin` comparaba contra ese checkpoint también sin importar `location_type`. Un check-in real desde el trabajo fallaba la escena por diseño (comparaba la foto del trabajo contra un punto de referencia de la casa — ej. pidió foto de la cocina estando en el trabajo).
+
+Corregido: si `locationType='work'`, el cliente no busca checkpoints (no existen por sitio de trabajo, solo hay una foto única en `cases.work_photo_url`) y el servidor compara contra esa foto en vez de buscar un checkpoint — mismo patrón anti-fraude de siempre (la referencia la decide el servidor según `location_type`, nunca el cliente). Verificado funcionando en iPhone (TestFlight build 6).
+→ `supabase/functions/process-checkin/index.ts`, `apps/mobile/src/hooks/useCheckinStore.ts`, `apps/mobile/app/(imputado)/checkin/escena.tsx`
+
 ## 🔨 En progreso
 
-### 14. App Android — build funcionando, falta probar en runtime
-Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android portado desde iOS con integración real (SDK v10.1.9, `.aar` en `android/app/libs/`, no versionado en git). **`./gradlew :app:assembleDebug` → BUILD SUCCESSFUL** — primer APK debug generado (`apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk`, ~195MB) y entregado al usuario para instalar en el teléfono de un tercero de prueba. En el camino hubo que resolver varios problemas de entorno (Android Studio sin PATH a `node`, Yarn 4 borrando `node_modules` en modo PnP, Gradle 9.3.1 incompatible con un plugin) — documentados en detalle en `docs/app-movil.md` → "Entorno de desarrollo Android — problemas resueltos", para no tener que redescubrirlos.
+### 14. App Android — build funcionando, FaceTec verificado en runtime (2026-07-28)
+Proyecto nativo generado (`apps/mobile/android/`) con la config que ya traía `app.json`. El grueso de la app (check-ins, mapa, mensajería, notas, heartbeat) ya es cross-platform vía Expo, sin trabajo extra. Puente nativo de FaceTec para Android portado desde iOS con integración real (SDK v10.1.9, `.aar` en `android/app/libs/`, no versionado en git). **`./gradlew :app:assembleRelease` → BUILD SUCCESSFUL**, y FaceTec (enroll + auth) ya se probó y funciona en runtime en dispositivo físico — ver punto 23. En el camino hubo que resolver varios problemas de entorno (Android Studio sin PATH a `node`, Yarn 4 borrando `node_modules` en modo PnP, Gradle 9.3.1 incompatible con un plugin) — documentados en detalle en `docs/app-movil.md` → "Entorno de desarrollo Android — problemas resueltos", para no tener que redescubrirlos.
 → `apps/mobile/android/app/src/main/java/co/arraigo/app/facetec/`, `.yarnrc.yml`, `/patches/*.patch` (raíz del monorepo)
 
 **Pendiente dentro de este punto:**
-- Probar el flujo real de FaceTec (enroll/authenticate) en runtime — nunca se ha ejecutado, solo compilado.
 - Push remoto en Android (Firebase/FCM) — degrada a polling por ahora, sin romper nada.
 - Firma de release / decidir distribución (APK directo vs Google Play).
 
