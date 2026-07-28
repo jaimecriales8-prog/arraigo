@@ -43,6 +43,17 @@ interface Grupo {
   checkins: number
 }
 
+interface Conteo {
+  valor: string
+  n: number
+}
+
+interface CampoPoblacion {
+  label: string
+  total: number
+  conteos: Conteo[]
+}
+
 async function getDatos() {
   const cookieStore = await cookies()
   const supabase = createClient(
@@ -68,18 +79,38 @@ async function getDatos() {
     p_organization_id: me.role === 'super_admin' ? null : me.organization_id,
   })
 
-  const stats: CasoStat[] = (statsRaw ?? [])
-    .map((s: any) => ({
-      ...s,
-      total_checkins: Number(s.total_checkins ?? 0),
-      aprobados: Number(s.aprobados ?? 0),
-      excusados: Number(s.excusados ?? 0),
-    }))
+  const todosLosCasos: CasoStat[] = (statsRaw ?? []).map((s: any) => ({
+    ...s,
+    total_checkins: Number(s.total_checkins ?? 0),
+    aprobados: Number(s.aprobados ?? 0),
+    excusados: Number(s.excusados ?? 0),
+  }))
+
+  // Caracterización poblacional: conteo simple por categoría, sobre TODOS los
+  // casos de la org (sin filtrar por si tienen check-ins) — no es sobre
+  // cumplimiento, es solo "cuántas mujeres, cuántos universitarios, etc.".
+  const poblacion: CampoPoblacion[] = CAMPOS.map(campo => {
+    const conteoMap = new Map<string, number>()
+    let total = 0
+    for (const s of todosLosCasos) {
+      const valor = s[campo.key]
+      if (valor == null) continue
+      const etiqueta = campo.formato ? campo.formato(valor) : String(valor)
+      conteoMap.set(etiqueta, (conteoMap.get(etiqueta) ?? 0) + 1)
+      total++
+    }
+    const conteos = [...conteoMap.entries()]
+      .map(([valor, n]) => ({ valor, n }))
+      .sort((a, b) => b.n - a.n)
+    return { label: campo.label, total, conteos }
+  }).filter(c => c.total > 0)
+
+  const stats: CasoStat[] = todosLosCasos
     // Solo casos con señal real de cumplimiento (al menos un check-in no excusado)
     .filter((s: CasoStat) => s.total_checkins - s.excusados > 0)
 
   if (stats.length === 0) {
-    return { baseline: null, mejores: [] as Grupo[], peores: [] as Grupo[], totalCasos: 0 }
+    return { baseline: null, mejores: [] as Grupo[], peores: [] as Grupo[], totalCasos: 0, poblacion, totalPoblacion: todosLosCasos.length }
   }
 
   const totalDenom = stats.reduce((acc, s) => acc + (s.total_checkins - s.excusados), 0)
@@ -134,7 +165,7 @@ async function getDatos() {
   const mejores = [...candidatos].sort((a, b) => b.tasa - a.tasa).slice(0, TOP_N)
   const peores = [...candidatos].sort((a, b) => a.tasa - b.tasa).slice(0, TOP_N)
 
-  return { baseline, mejores, peores, totalCasos: stats.length }
+  return { baseline, mejores, peores, totalCasos: stats.length, poblacion, totalPoblacion: todosLosCasos.length }
 }
 
 function TablaHallazgos({ titulo, grupos, baseline, mejor }: { titulo: string; grupos: Grupo[]; baseline: number; mejor: boolean }) {
@@ -177,15 +208,57 @@ function TablaHallazgos({ titulo, grupos, baseline, mejor }: { titulo: string; g
   )
 }
 
+function CaracterizacionPoblacional({ poblacion, totalPoblacion }: { poblacion: CampoPoblacion[]; totalPoblacion: number }) {
+  if (poblacion.length === 0) {
+    return (
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 32, textAlign: 'center', color: 'var(--text-muted)', marginBottom: 24 }}>
+        Aún no hay datos adicionales capturados para caracterizar la población.
+      </div>
+    )
+  }
+  return (
+    <div style={{ marginBottom: 28 }}>
+      <h2 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Caracterización de la población</h2>
+      <p style={{ color: 'var(--text-muted)', marginBottom: 14, fontSize: 13 }}>
+        {totalPoblacion} caso{totalPoblacion !== 1 ? 's' : ''} de la organización — conteo simple por categoría, sin filtrar por cumplimiento.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
+        {poblacion.map(campo => (
+          <div key={campo.label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: 18 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+              {campo.label} <span style={{ opacity: 0.7 }}>({campo.total})</span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {campo.conteos.map(c => (
+                <div key={c.valor}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 3 }}>
+                    <span>{c.valor}</span>
+                    <span style={{ color: 'var(--text-muted)' }}>{c.n} ({Math.round((c.n / campo.total) * 100)}%)</span>
+                  </div>
+                  <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${(c.n / campo.total) * 100}%`, background: 'var(--accent)', borderRadius: 3 }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 export default async function DemograficoPage() {
-  const { baseline, mejores, peores, totalCasos } = await getDatos()
+  const { baseline, mejores, peores, totalCasos, poblacion, totalPoblacion } = await getDatos()
 
   return (
     <div>
       <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Estudio demográfico</h1>
       <p style={{ color: 'var(--text-muted)', marginBottom: 20, fontSize: 14 }}>
-        Grupos con cumplimiento notablemente distinto al promedio, cruzando variables del onboarding y nivel de peligrosidad.
+        Caracterización de la población y grupos con cumplimiento notablemente distinto al promedio.
       </p>
+
+      <CaracterizacionPoblacional poblacion={poblacion} totalPoblacion={totalPoblacion} />
 
       <div style={{
         background: 'var(--warning)11', border: '1px solid var(--warning)', borderRadius: 12,
