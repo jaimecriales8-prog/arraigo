@@ -73,6 +73,15 @@ Sigue los dos patrones ya establecidos en el código en vez de inventar nuevos: 
 
 **Fuera de alcance (fast-follow explícito):** editar `work_geofence_radius_m` desde el panel (fijo en 200m por ahora), marcar retroactivamente check-ins pasados si se vuelve a registrar el sitio, pin del sitio de trabajo en el mapa general y desglose por `location_type` en reportes PDF (la columna ya queda grabada, la UI no se construyó en esta iteración).
 
+### 19. Datos adicionales del imputado en el onboarding (2026-07-28)
+Nuevo paso en el onboarding del técnico (entre "escanear domicilio" y "confirmar"), inspirado en el formulario de registro de GeoDataVoice: perfil socioeconómico (estrato, nivel educativo, estado civil, hijos, régimen de salud, tenencia de vivienda, ocupación), un contacto de emergencia, y condiciones médicas/especiales (movilidad reducida, condiciones, medicamentos). Todos los campos son opcionales — a diferencia del formulario de GeoDataVoice, no debe bloquear la activación del caso; el técnico puede "Omitir por ahora". UI con chips/toggles (sin librería de picker nueva, siguiendo el patrón ya usado en `checkin/gps.tsx` y `onboarding/scan.tsx`).
+
+Al explorar el paso final del onboarding se encontró un problema pre-existente no relacionado: `confirmar.tsx` escribe directo en `cases` y `profiles` desde el cliente del técnico, pero no hay ninguna política RLS de `UPDATE` para el rol `tecnico` en esas tablas en las migraciones — o hay una política viva en producción sin migración local (mismo patrón ya visto con `create_scheduled_checkins`), o ese guardado falla silenciosamente sin que nadie lo haya notado. Por eso los campos nuevos se escriben con un edge function separado y auto-autorizado (`save-onboarding-details`, mismo patrón que `register-work-location`), que no depende de esa RLS ambigua.
+
+→ `supabase/migrations/20260729_023_datos_adicionales_onboarding.sql` (14 columnas nuevas en `cases`), `supabase/functions/save-onboarding-details/`, `apps/mobile/app/(tecnico)/onboarding/[caseId]/datos-adicionales.tsx`, `apps/web/src/app/dashboard/casos/[id]/page.tsx` (bloque "Datos adicionales")
+
+**Pendiente (no resuelto en esta iteración):** verificar directo contra la BD si existe una política RLS viva de `UPDATE` para `tecnico` en `cases`/`profiles` que respalde el guardado que ya hace `confirmar.tsx` hoy — si no existe, ese guardado (location, reference_photo_url, checkpoints) podría estar fallando silenciosamente en producción y merece investigación aparte.
+
 ## 🔨 En progreso
 
 ### 14. App Android — build funcionando, falta probar en runtime
