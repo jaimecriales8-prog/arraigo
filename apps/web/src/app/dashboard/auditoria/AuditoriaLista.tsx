@@ -25,6 +25,7 @@ const ACTION_LABEL: Record<string, string> = {
   'alert.resolved': 'Alerta resuelta',
   'case.note_added': 'Nota de seguimiento agregada',
   'work_location_change_approved': 'Cambio de sitio de trabajo aprobado',
+  'organization.created': 'Organización creada',
 }
 const ROL_LABEL: Record<string, string> = {
   super_admin: 'Super Admin', judicial: 'Entidad Judicial', tecnico: 'Técnico', operador: 'Operador', imputado: 'Imputado',
@@ -39,6 +40,7 @@ const ACTION_COLOR: Record<string, string> = {
   'alert.resolved': 'var(--success)',
   'case.note_added': 'var(--accent)',
   'work_location_change_approved': 'var(--success)',
+  'organization.created': 'var(--success)',
 }
 
 const fmt = (iso: string) =>
@@ -65,6 +67,8 @@ function detalle(a: Entrada): string {
       return `${p.preview ?? ''}`
     case 'case.technician_reassigned':
       return 'Nuevo técnico asignado'
+    case 'organization.created':
+      return `${p.name ?? ''}${p.city ? ` · ${p.city}` : ''}`
     default:
       return ''
   }
