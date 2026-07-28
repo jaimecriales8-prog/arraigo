@@ -12,11 +12,15 @@ interface Checkpoint {
   description: string | null
 }
 
+const WORK_INSTRUCTION: Checkpoint = {
+  id: '', label: 'Tu sitio de trabajo', description: 'Apunta la cámara al espacio que registraste como sitio de trabajo.',
+}
+
 export default function EscenaScreen() {
   const router = useRouter()
   const { checkinId } = useLocalSearchParams<{ checkinId: string }>()
   const { profile } = useAuth()
-  const { setScene } = useCheckinStore()
+  const { setScene, locationType } = useCheckinStore()
   const cameraRef = useRef<CameraView>(null)
   const [checkpoint, setCheckpoint] = useState<Checkpoint | null>(null)
   const [loadingCheckpoint, setLoadingCheckpoint] = useState(true)
@@ -26,6 +30,15 @@ export default function EscenaScreen() {
 
   async function loadRandomCheckpoint() {
     setLoadingCheckpoint(true)
+
+    // Sitio de trabajo: no hay checkpoints por punto (solo una foto de
+    // referencia registrada una vez) — el servidor compara contra
+    // cases.work_photo_url según location_type, no contra `checkpoints`.
+    if (locationType === 'work') {
+      setCheckpoint(WORK_INSTRUCTION)
+      setLoadingCheckpoint(false)
+      return
+    }
 
     // Obtener el case_id del check-in
     const { data: checkin } = await supabase
@@ -59,7 +72,7 @@ export default function EscenaScreen() {
         quality: 0.8, base64: true, exif: false,
       })
       if (photo?.base64) {
-        setScene(photo.base64, photo.uri, checkpoint.id)
+        setScene(photo.base64, photo.uri, locationType === 'work' ? null : checkpoint.id)
         router.push({ pathname: '/(imputado)/checkin/resultado', params: { checkinId } })
       }
     } catch {
@@ -93,7 +106,7 @@ export default function EscenaScreen() {
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.step}>Paso 3 de 3</Text>
-        <Text style={styles.title}>Verifica tu domicilio</Text>
+        <Text style={styles.title}>{locationType === 'work' ? 'Verifica tu sitio de trabajo' : 'Verifica tu domicilio'}</Text>
       </View>
 
       {/* Instrucción del checkpoint */}

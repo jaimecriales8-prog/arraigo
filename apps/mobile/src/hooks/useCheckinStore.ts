@@ -22,7 +22,7 @@ interface CheckinStore {
 
   setSelfie: (base64: string, uri: string) => void
   setGPS: (lat: number, lng: number, accuracyM: number, isMock: boolean) => void
-  setScene: (base64: string, uri: string, checkpointId: string) => void
+  setScene: (base64: string, uri: string, checkpointId: string | null) => void
   setSurpriseVerificationId: (id: string) => void
   setLocationType: (t: 'home' | 'work') => void
   setFacetecResult: (r: { livenessPassed: boolean; matchScore: number; sessionId: string }) => void

@@ -89,7 +89,7 @@ Deno.serve(async (req) => {
 
     const { data: caso } = await supabase
       .from('cases')
-      .select('id, organization_id, imputado_id, geofence_radius_m, location, work_geofence_radius_m, work_location')
+      .select('id, organization_id, imputado_id, geofence_radius_m, location, work_geofence_radius_m, work_location, work_photo_url')
       .eq('id', checkin.case_id)
       .single()
 
@@ -130,19 +130,25 @@ Deno.serve(async (req) => {
     let scenePassed = true
     const openaiKey = Deno.env.get('OPENAI_API_KEY')
 
-    if (openaiKey && sceneCheckpointId) {
-      try {
-        // Cargar checkpoint de referencia — VALIDANDO que pertenece a ESTE caso.
-        // (Anti-fraude: el cliente no puede referenciar checkpoints de otro caso
-        // ni elegir uno arbitrario.)
-        const { data: checkpoint } = await supabase
-          .from('checkpoints')
-          .select('photo_url, case_id')
-          .eq('id', sceneCheckpointId)
-          .eq('case_id', checkin.case_id)
-          .maybeSingle()
+    // Referencia de escena: checkpoint de casa (elegido al azar entre varios) o
+    // la única foto de sitio de trabajo — según locType, nunca según lo que
+    // mande el cliente (anti-fraude: el checkpoint se valida contra este caso).
+    let refPhotoUrl: string | null = null
+    if (locType === 'work') {
+      refPhotoUrl = caso.work_photo_url ?? null
+    } else if (sceneCheckpointId) {
+      const { data: checkpoint } = await supabase
+        .from('checkpoints')
+        .select('photo_url, case_id')
+        .eq('id', sceneCheckpointId)
+        .eq('case_id', checkin.case_id)
+        .maybeSingle()
+      refPhotoUrl = checkpoint?.photo_url ?? null
+    }
 
-        if (checkpoint?.photo_url) {
+    if (openaiKey && refPhotoUrl) {
+      try {
+        {
           // Normalizar: el photo_url puede venir como URL pública completa (datos viejos)
           // o como path relativo (datos nuevos). createSignedUrl requiere el path.
           const toPath = (u: string) => {
@@ -150,7 +156,7 @@ Deno.serve(async (req) => {
             const i = u.indexOf(marker)
             return i >= 0 ? u.slice(i + marker.length) : u
           }
-          const refPath = toPath(checkpoint.photo_url)
+          const refPath = toPath(refPhotoUrl)
           // Anti-fraude: la ruta de la escena la DERIVA el servidor del checkinId,
           // no se confía del cliente (evita apuntar sceneUrl a la foto de referencia).
           const scenePath = `checkins/${checkinId}/scene.jpg`
