@@ -35,6 +35,7 @@ function Chips({ options, value, onChange }: { options: string[]; value?: string
           key={opt}
           style={[styles.chip, value === opt && styles.chipActive]}
           onPress={() => onChange(opt)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
         >
           <Text style={[styles.chipText, value === opt && styles.chipTextActive]}>{opt}</Text>
         </TouchableOpacity>
@@ -48,10 +49,10 @@ function Toggle({ label, value, onChange }: { label: string; value?: boolean; on
     <View style={styles.toggleRow}>
       <Text style={styles.toggleLabel}>{label}</Text>
       <View style={styles.toggleBtns}>
-        <TouchableOpacity style={[styles.toggleBtn, value === true && styles.toggleBtnActive]} onPress={() => onChange(true)}>
+        <TouchableOpacity style={[styles.toggleBtn, value === true && styles.toggleBtnActive]} onPress={() => onChange(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={[styles.toggleBtnText, value === true && styles.toggleBtnTextActive]}>Sí</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.toggleBtn, value === false && styles.toggleBtnActive]} onPress={() => onChange(false)}>
+        <TouchableOpacity style={[styles.toggleBtn, value === false && styles.toggleBtnActive]} onPress={() => onChange(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Text style={[styles.toggleBtnText, value === false && styles.toggleBtnTextActive]}>No</Text>
         </TouchableOpacity>
       </View>
