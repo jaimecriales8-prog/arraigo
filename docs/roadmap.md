@@ -102,8 +102,8 @@ El usuario planteó originalmente un modelo de ownership individual (cada `judic
 
 **Fuera de alcance:** editar/desactivar una organización existente desde el panel (solo creación por ahora), transferir casos entre organizaciones.
 
-### 22. Revisión de seguridad — tres hallazgos corregidos (2026-07-27 a 2026-08-01)
-Dos rondas de auditoría del repo (RLS, rutas con service-role, edge functions, storage, mobile) encontraron tres vulnerabilidades reales, las tres corregidas:
+### 22. Revisión de seguridad — cuatro hallazgos corregidos (2026-07-27 a 2026-08-01)
+Tres rondas de auditoría del repo (RLS, rutas con service-role, edge functions, storage, mobile) encontraron cuatro vulnerabilidades reales, las cuatro corregidas:
 
 - **HIGH — `case_messages` permitía al imputado alterar mensajes del funcionario.** La política RLS `UPDATE` (pensada solo para marcar `read_at`) filtraba filas pero no columnas — con la anon key + su propio JWT, el imputado podía modificar el contenido de cualquier mensaje de su caso vía PostgREST. Corregido restringiendo el `GRANT UPDATE` a solo la columna `read_at`.
   → `supabase/migrations/20260727_021_fix_case_messages_update_cols.sql`
@@ -111,6 +111,10 @@ Dos rondas de auditoría del repo (RLS, rutas con service-role, edge functions, 
   → `supabase/functions/facetec-proxy/index.ts`
 - **HIGH — `tecnico` podía escribir cualquier columna de su caso asignado, no solo las que usa la app.** Segunda ronda de revisión (tras agregar sitio de trabajo/onboarding/organizaciones) encontró que las políticas RLS de `tecnico` en `cases`/`profiles` (formalizadas en `20260731_025`, ya vivían en producción desde antes) restringen solo filas, no columnas — un técnico autenticado podía escribir `organization_id` (romper aislamiento multi-tenant), `geofence_radius_m` (inflar el radio para pasar el GPS trivialmente), o **`work_change_approved_at`/`work_change_approved_by`** (auto-aprobarse un cambio de sitio de trabajo, saltándose por completo la aprobación de `judicial` que se acababa de construir). No se pudo restringir por columna con `GRANT`/`REVOKE` porque `judicial`/`org_admin` comparten el mismo rol `authenticated` y sí necesitan escribir más columnas. Corregido eliminando el UPDATE directo del cliente y moviendo ese guardado a un edge function nuevo (`finalize-onboarding`, lista blanca explícita: `location`, `onboarding_done_at`, `status`, `reference_photo_url`), mismo patrón que `register-work-location`/`save-onboarding-details`.
   → `supabase/migrations/20260801_026_restringir_rls_tecnico.sql`, `supabase/functions/finalize-onboarding/`, `apps/mobile/app/(tecnico)/onboarding/[caseId]/confirmar.tsx`
+- **CRITICAL — cualquier usuario podía autoescalarse a `super_admin`.** Tercera ronda (auditoría completa de las 26 migraciones, no solo lo nuevo) encontró que la política `"usuario actualiza su propio perfil"` (del schema original, nunca corregida) restringía solo filas (`id = auth.uid()`), no columnas. Cualquier usuario autenticado — incluido un `imputado`, el rol de menor privilegio — podía ejecutar `UPDATE profiles SET role = 'super_admin' WHERE id = auth.uid()` con su propia sesión legítima. Como todas las políticas RLS del sistema verifican el rol leyendo `profiles.role` del propio usuario, esto era una escalada completa de imputado a super_admin sin pasar por ningún endpoint de creación de usuarios. Confirmado que el cliente solo escribía `push_token`/`last_seen_at` vía esta política — corregido con `REVOKE UPDATE` + `GRANT UPDATE` restringido a esas dos columnas (mismo patrón que `case_messages`, sin conflicto con otras políticas porque es la única `UPDATE` de self-service sobre `profiles`).
+  → `supabase/migrations/20260801_027_restringir_rls_profiles_self_update.sql`
+
+**Nota:** las cuatro vulnerabilidades comparten la misma causa raíz — políticas RLS de `UPDATE` en el schema original que restringen filas pero nunca columnas. Si se agrega una tabla nueva con `UPDATE` client-facing, revisar explícitamente si necesita restricción de columna antes de darla por seguro.
 
 ## 🔨 En progreso
 
