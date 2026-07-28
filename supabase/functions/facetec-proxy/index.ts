@@ -14,7 +14,9 @@ const supabase = createClient(
 // Al licenciar FaceTec Server: cambiar FACETEC_UPSTREAM y quitar headers de testing.
 
 const FACETEC_UPSTREAM = Deno.env.get('FACETEC_UPSTREAM') ?? 'https://api.facetec.com/api/v4/biometrics/process-request'
-const DEVICE_KEY = Deno.env.get('FACETEC_DEVICE_KEY') ?? 'dTCCKq4bZ9mHJrkhc0dL2bCZuzAjMAF1'
+// Sin fallback hardcodeado: si el secret no está configurado, falla explícito
+// en vez de exponer la key en el código fuente (ver docs/roadmap.md).
+const DEVICE_KEY = Deno.env.get('FACETEC_DEVICE_KEY')
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +28,11 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response(null, { headers: cors })
 
   try {
+    if (!DEVICE_KEY) {
+      console.error('FACETEC_DEVICE_KEY no configurada')
+      return new Response(JSON.stringify({ error: 'Servicio de verificación facial no configurado' }), { status: 500, headers: cors })
+    }
+
     const authHeader = req.headers.get('Authorization')
     if (!authHeader) return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: cors })
 
