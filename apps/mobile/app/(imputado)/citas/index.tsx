@@ -1,11 +1,19 @@
-import { useState } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView } from 'react-native'
+import { useState, useEffect, useCallback } from 'react'
+import { View, Text, TouchableOpacity, StyleSheet, TextInput, Alert, ScrollView, ActivityIndicator } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useCase } from '../../../src/hooks/useCase'
 import { supabase, ensureFreshSession } from '../../../src/lib/supabase'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 const TIME_RE = /^\d{2}:\d{2}$/
+
+interface Cita {
+  id: string
+  appointment_date: string
+  start_time: string
+  end_time: string
+  reason: string | null
+}
 
 export default function CitasScreen() {
   const router = useRouter()
@@ -16,8 +24,24 @@ export default function CitasScreen() {
   const [reason, setReason] = useState('')
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
+  const [citas, setCitas] = useState<Cita[]>([])
+  const [loadingCitas, setLoadingCitas] = useState(true)
+
+  const cargarCitas = useCallback(async () => {
+    setLoadingCitas(true)
+    const { data } = await supabase
+      .from('medical_appointments')
+      .select('id, appointment_date, start_time, end_time, reason')
+      .order('appointment_date', { ascending: false })
+    setCitas(data ?? [])
+    setLoadingCitas(false)
+  }, [])
+
+  useEffect(() => { cargarCitas() }, [cargarCitas])
 
   if (loading || !caseData) return <View style={styles.container} />
+
+  const hoy = new Date().toISOString().slice(0, 10)
 
   async function reportar() {
     if (!DATE_RE.test(date)) {
@@ -41,6 +65,7 @@ export default function CitasScreen() {
       if (error) throw error
       setDone(true)
       setDate(''); setStart(''); setEnd(''); setReason('')
+      cargarCitas()
     } catch (e: any) {
       Alert.alert('Error', e?.message ?? 'No se pudo reportar la cita.')
     } finally {
@@ -65,6 +90,30 @@ export default function CitasScreen() {
             <Text style={styles.cardText}>Tu funcionario puede ver este reporte en tu caso.</Text>
           </View>
         )}
+
+        <View style={styles.card}>
+          <Text style={styles.sectionLabelStandalone}>Tus citas reportadas</Text>
+          {loadingCitas ? (
+            <ActivityIndicator color="#2563eb" style={{ marginVertical: 8 }} />
+          ) : citas.length === 0 ? (
+            <Text style={styles.cardText}>Aún no has reportado ninguna cita.</Text>
+          ) : (
+            <View style={{ gap: 10 }}>
+              {citas.map(c => {
+                const pasada = c.appointment_date < hoy
+                return (
+                  <View key={c.id} style={styles.citaRow}>
+                    <Text style={[styles.citaFecha, pasada && styles.citaPasada]}>
+                      {new Date(c.appointment_date + 'T00:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
+                      {'  '}{c.start_time?.slice(0, 5)}–{c.end_time?.slice(0, 5)}
+                    </Text>
+                    {c.reason && <Text style={styles.citaMotivo}>{c.reason}</Text>}
+                  </View>
+                )
+              })}
+            </View>
+          )}
+        </View>
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Fecha (AAAA-MM-DD)</Text>
@@ -113,6 +162,11 @@ const styles = StyleSheet.create({
   cardTitle: { fontSize: 18, fontWeight: '700', color: '#fff', marginBottom: 8 },
   cardText: { fontSize: 14, color: '#7a9bbf', lineHeight: 20 },
   sectionLabel: { fontSize: 12, color: '#7a9bbf', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginTop: 8, marginBottom: 8 },
+  sectionLabelStandalone: { fontSize: 12, color: '#7a9bbf', fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 },
+  citaRow: { borderTopWidth: 1, borderTopColor: '#2563eb22', paddingTop: 10 },
+  citaFecha: { fontSize: 14, color: '#fff', fontWeight: '600' },
+  citaPasada: { color: '#7a9bbf', fontWeight: '400' },
+  citaMotivo: { fontSize: 13, color: '#7a9bbf', marginTop: 2 },
   textInput: { backgroundColor: '#0f2236', borderRadius: 10, padding: 12, color: '#fff', borderWidth: 1, borderColor: '#2563eb33', fontSize: 14, marginBottom: 4 },
   btn: { backgroundColor: '#2563eb', borderRadius: 12, padding: 16, alignItems: 'center', marginTop: 16 },
   btnDisabled: { opacity: 0.6 },
