@@ -151,6 +151,40 @@ La excusa automática se resuelve extendiendo `expire_missed_verifications()` (l
 
 **Fuera de alcance:** justificación retroactiva, adjuntar soporte médico (foto de la orden), editar/cancelar una cita ya reportada, notificación push al staff cuando se reporta.
 
+### 26. Caracterización poblacional simple + reiniciar enrolamiento facial bloqueado (2026-08-02)
+Dos features chicas, mismo día:
+
+- **Caracterización poblacional** en `Dashboard → Estudio demográfico`: conteos simples por categoría ("cuántas mujeres, cuántos universitarios") sobre TODOS los casos de la organización, sin filtrar por cumplimiento ni exigir muestra mínima — a diferencia de los hallazgos de cumplimiento de la misma página, que sí requieren datos de check-in. Una tarjeta por campo con conteo, porcentaje y barra.
+  → `apps/web/src/app/dashboard/reportes/demografico/page.tsx`
+- **Reiniciar enrolamiento facial**: cuando FaceTec rechaza un re-enrolamiento (`"An enrollment already exists for this externalDatabaseRefID"` — pasa cuando un enrolamiento queda a medias por batería/red/cámara durante el onboarding real, no solo en pruebas), el técnico ya no tenía forma de resolverlo sin crear un imputado nuevo. Nuevo edge function `reset-facetec-enrollment` que borra el FaceMap guardado en FaceTec (`DELETE .../enrollment-3d`, mismo host que `facetec-proxy`) — solo el técnico asignado (o `super_admin`), y solo mientras el caso sigue en `onboarding` (una vez activo, cambiar la referencia facial necesita un control más estricto). Botón "Reiniciar enrolamiento" en `identidad.tsx`, visible solo tras un fallo. Verificado funcionando en Android con un caso real bloqueado (Alexandra Gómez).
+  → `supabase/functions/reset-facetec-enrollment/`, `apps/mobile/app/(tecnico)/onboarding/[caseId]/identidad.tsx`
+
+### 27. Proceso de limpieza de datos de prueba — `audit_log` es inmutable a propósito (2026-08-02)
+Necesidad recurrente: borrar imputados/casos de prueba (ej. tras probar FaceTec repetidamente con la misma cuenta). El primer intento manual (`DELETE FROM cases ...`) siempre chocaba con `audit_log_case_id_fkey`, incluso variando el orden de borrado o probando `ON DELETE SET NULL`. Causa raíz encontrada tras varias rondas de diagnóstico: `audit_log` tiene dos reglas puestas a propósito —
+
+```sql
+CREATE RULE audit_log_no_delete AS ON DELETE TO audit_log DO INSTEAD NOTHING;
+CREATE RULE audit_log_no_update AS ON UPDATE TO audit_log DO INSTEAD NOTHING;
+```
+
+— que hacen la tabla **inmutable**: ningún `DELETE` ni `UPDATE` le afecta nunca, sin importar cómo se ejecute (directo, desde una función `SECURITY DEFINER`, con `row_security = off`, etc.) — Postgres simplemente reescribe la sentencia a "no hacer nada". Esto también rompe `ON DELETE SET NULL` en el FK (el motor de FK necesita hacer un `UPDATE` internamente, que la regla `audit_log_no_update` también bloquea, dando `XX000: referential integrity query gave unexpected result`).
+
+Esto es **correcto por diseño** para casos reales — no debería poder borrarse un caso con historial de auditoría, eso destruiría evidencia de cadena de custodia. El FK se dejó en su `RESTRICT` por defecto.
+
+Para limpiar datos de prueba, el procedimiento correcto es levantar la regla temporalmente, a propósito, en el mismo bloque que el borrado:
+
+```sql
+DROP RULE audit_log_no_delete ON audit_log;
+
+SELECT delete_test_imputado('<uuid-del-imputado>');  -- función nueva, ver abajo
+
+CREATE RULE audit_log_no_delete AS ON DELETE TO public.audit_log DO INSTEAD NOTHING;
+```
+
+`delete_test_imputado(uuid)` (nueva función SQL reutilizable) borra en el orden correcto: `audit_log` (solo funciona con la regla levantada) → `facetec_sessions` → `checkin_errors` (defensivo, tabla sin migración local) → `cases` (cascada a `checkins`, `checkpoints`, `alerts`, `surprise_verifications`, `case_messages`, `case_notes`, `medical_appointments`) → `auth.users` (cascada a `profiles`). Solo borra perfiles con `role = 'imputado'`, nunca staff.
+
+→ `supabase/migrations/20260802_033_delete_test_imputado.sql`, `20260802_034_fix_delete_test_imputado_rls.sql` (intento fallido, no resolvió nada — la causa real era la regla, no RLS), `20260802_035_audit_log_case_id_set_null_on_delete.sql` (intento fallido, revertido), `20260802_036_revertir_audit_log_fk.sql`
+
 ## 🔨 En progreso
 
 ### 14. App Android — build funcionando, FaceTec verificado en runtime (2026-07-28)
