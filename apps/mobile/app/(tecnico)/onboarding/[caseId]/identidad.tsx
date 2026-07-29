@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import { supabase } from '../../../../src/lib/supabase'
+import { supabase, ensureFreshSession } from '../../../../src/lib/supabase'
 import { resolveFacetecEnabled } from '../../../../src/lib/config'
 import { facetecEnroll } from '../../../../src/lib/facetec'
 
@@ -227,6 +227,8 @@ export default function OnboardingIdentidad() {
   const [imputadoId, setImputadoId] = useState<string | null>(null)
   const [facetecEnrolled, setFacetecEnrolled] = useState(false)
   const [enrolling, setEnrolling] = useState(false)
+  const [enrollFailed, setEnrollFailed] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   useEffect(() => {
     if (permission && !permission.granted) requestPermission()
@@ -250,18 +252,39 @@ export default function OnboardingIdentidad() {
   async function enrolarFacetec() {
     if (!imputadoId) { Alert.alert('Error', 'No se encontró el imputado del caso.'); return }
     setEnrolling(true)
+    setEnrollFailed(false)
     try {
       const result = await facetecEnroll(imputadoId)
       if (result.success) {
         setFacetecEnrolled(true)
         setPaso('aprobado')
       } else {
-        Alert.alert('Verificación incompleta', `La sesión no se completó (${result.sessionStatus}). Intenta de nuevo.`)
+        setEnrollFailed(true)
+        Alert.alert('Verificación incompleta', `La sesión no se completó (${result.sessionStatus}). Si ya intentaste antes con este imputado, puede que necesites reiniciar el enrolamiento.`)
       }
     } catch (e: any) {
+      setEnrollFailed(true)
       Alert.alert('Error FaceTec', e?.message ?? 'No se pudo completar el enrolamiento.')
     } finally {
       setEnrolling(false)
+    }
+  }
+
+  // Reinicia el enrolamiento facial en FaceTec cuando queda bloqueado por un
+  // intento anterior ("An enrollment already exists...") — solo mientras el
+  // caso siga en onboarding, ver reset-facetec-enrollment.
+  async function reiniciarEnrolamiento() {
+    setResetting(true)
+    try {
+      await ensureFreshSession()
+      const { error } = await supabase.functions.invoke('reset-facetec-enrollment', { body: { caseId } })
+      if (error) throw error
+      setEnrollFailed(false)
+      Alert.alert('Enrolamiento reiniciado', 'Ya puedes intentar el escaneo facial de nuevo.')
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'No se pudo reiniciar el enrolamiento.')
+    } finally {
+      setResetting(false)
     }
   }
 
@@ -341,6 +364,17 @@ export default function OnboardingIdentidad() {
                 ? <ActivityIndicator color="#fff" />
                 : <Text style={styles.nextBtnText}>Iniciar escaneo facial 3D</Text>}
             </TouchableOpacity>
+            {enrollFailed && (
+              <TouchableOpacity
+                style={[styles.resetBtn, resetting && { opacity: 0.6 }]}
+                onPress={reiniciarEnrolamiento}
+                disabled={resetting}
+              >
+                {resetting
+                  ? <ActivityIndicator color="#f59e0b" />
+                  : <Text style={styles.resetBtnText}>¿Ya intentaste antes con este imputado? Reiniciar enrolamiento</Text>}
+              </TouchableOpacity>
+            )}
           </View>
         )}
 
@@ -438,6 +472,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 40, paddingVertical: 16, marginTop: 8,
   },
   nextBtnText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  resetBtn: {
+    marginTop: 12, paddingHorizontal: 20, paddingVertical: 12, borderRadius: 10,
+    borderWidth: 1, borderColor: '#f59e0b55',
+  },
+  resetBtnText: { color: '#f59e0b', fontSize: 12.5, textAlign: 'center' },
   declinadoTitle: { fontSize: 20, fontWeight: '700', color: '#f87171' },
   declinadoSub: { fontSize: 13, color: '#7a9bbf', textAlign: 'center' },
   retryBtn: { backgroundColor: '#2563eb', borderRadius: 12, paddingHorizontal: 32, paddingVertical: 14 },
