@@ -5,11 +5,14 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 
-// Mismo host que facetec-proxy (FACETEC_UPSTREAM), pero el endpoint de borrado
-// de FaceTec es /enrollment-3d en vez de /process-request — se deriva del
-// mismo secret para no duplicar configuración.
+// Mismo host que facetec-proxy (FACETEC_UPSTREAM). El endpoint real de borrado
+// (confirmado empíricamente contra la API real el 2026-07-30 — no está en
+// ninguna documentación pública accesible sin cuenta de desarrollador) es
+// POST /3d-db/delete con body {identifier: externalDatabaseRefID}, NO
+// DELETE /enrollment-3d como se asumió originalmente (esa ruta no existe:
+// 404 "No route found").
 const FACETEC_UPSTREAM = Deno.env.get('FACETEC_UPSTREAM') ?? 'https://api.facetec.com/api/v4/biometrics/process-request'
-const FACETEC_DELETE_ENROLLMENT_URL = FACETEC_UPSTREAM.replace('/process-request', '/enrollment-3d')
+const FACETEC_DELETE_ENROLLMENT_URL = FACETEC_UPSTREAM.replace('/process-request', '/3d-db/delete')
 const DEVICE_KEY = Deno.env.get('FACETEC_DEVICE_KEY')
 
 const J = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' }
@@ -64,21 +67,24 @@ Deno.serve(async (req) => {
     }
 
     const upstream = await fetch(FACETEC_DELETE_ENROLLMENT_URL, {
-      method: 'DELETE',
+      method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Device-Key': DEVICE_KEY },
-      body: JSON.stringify({ externalDatabaseRefID: caso.imputado_id }),
+      body: JSON.stringify({ identifier: caso.imputado_id }),
     })
     const bodyText = await upstream.text()
+    let json: any = {}
+    try { json = JSON.parse(bodyText) } catch { /* respuesta no-JSON */ }
+    const borrado = upstream.ok && json.success === true && json.error !== true
 
     await supabase.from('facetec_sessions').insert({
       imputado_id: caso.imputado_id,
       kind: 'enroll',
       was_processed: false,
-      error: upstream.ok ? 'Enrolamiento reiniciado por el técnico' : `Reinicio falló: HTTP ${upstream.status}`,
+      error: borrado ? 'Enrolamiento reiniciado por el técnico' : `Reinicio falló: HTTP ${upstream.status}`,
       result: { reset: true, upstream_status: upstream.status, upstream_body: bodyText.slice(0, 500) },
     })
 
-    if (!upstream.ok) {
+    if (!borrado) {
       return new Response(JSON.stringify({ error: `FaceTec no pudo borrar el enrolamiento (HTTP ${upstream.status})`, detail: bodyText }), { status: 502, headers: J })
     }
 
