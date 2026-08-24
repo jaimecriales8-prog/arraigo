@@ -31,7 +31,10 @@ Deno.serve(async (_req) => {
       checkin_id: p.checkin_id,
       kind: 'two_missed_warning',
       sent_ok: result.ok,
-      error: result.ok ? null : (result.detail ?? 'error desconocido'),
+      // Guardamos el detalle SIEMPRE (no solo en fallo) — un HTTP 200 de
+      // SendPulse no garantiza que WhatsApp realmente vaya a entregar el
+      // mensaje; el cuerpo real es la única forma de diagnosticarlo.
+      error: result.detail ?? (result.ok ? null : 'error desconocido'),
     })
   }
 
